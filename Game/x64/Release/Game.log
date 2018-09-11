@@ -1,0 +1,22 @@
+﻿  GameController.cpp
+f:\programming\games\2d\game\game\HPTimer.h(35): warning C4244: 'initializing': conversion from '__int64' to 'float', possible loss of data
+f:\programming\games\2d\game\game\HPTimer.h(40): warning C4244: 'initializing': conversion from '__int64' to 'float', possible loss of data
+  GameScreen.cpp
+  Graphics.cpp
+Graphics.cpp(72): warning C4267: 'argument': conversion from 'size_t' to 'UINT32', possible loss of data
+  Main.cpp
+f:\programming\games\2d\game\game\HPTimer.h(35): warning C4244: 'initializing': conversion from '__int64' to 'float', possible loss of data
+f:\programming\games\2d\game\game\HPTimer.h(40): warning C4244: 'initializing': conversion from '__int64' to 'float', possible loss of data
+  MainScreen.cpp
+f:\programming\games\2d\game\game\HPTimer.h(35): warning C4244: 'initializing': conversion from '__int64' to 'float', possible loss of data
+f:\programming\games\2d\game\game\HPTimer.h(40): warning C4244: 'initializing': conversion from '__int64' to 'float', possible loss of data
+  SpriteSheet.cpp
+SpriteSheet.cpp(42): warning C4244: '=': conversion from 'FLOAT' to 'int', possible loss of data
+SpriteSheet.cpp(43): warning C4244: '=': conversion from 'FLOAT' to 'int', possible loss of data
+  Generating code
+  4 of 51 functions ( 7.8%) were compiled, the rest were copied from previous compilation.
+    0 functions were new in current compilation
+    2 functions had inline decision re-evaluated but remain unchanged
+  Finished generating code
+  Game.vcxproj -> F:\Programming\Games\2D\Game\x64\Release\Game.exe
+  Game.vcxproj -> F:\Programming\Games\2D\Game\x64\Release\Game.pdb (Full PDB)
