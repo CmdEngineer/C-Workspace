@@ -1,12 +1,14 @@
 #include "Console.h"
 
+// Code Regions
+#define CODE_REGION_CONSOLE_CLASS 1
+#define CODE_REGION_REGION_SUB_CLASS 2
+#define CODE_REGION_PIXEL_SUB_CLASS 3
+#define CODE_REGION_POINT_SUB_CLASS 4
+#define CODE_REGION_VECTOR_SUB_CLASS 5
 
-
-/***
-**
-** CONSOLE CLASS:
-**
-***/
+/// CONSOLE CLASS:
+#ifdef CODE_REGION_CONSOLE_CLASS
 int Console::initConsole()
 {
 	ZeroMemory(&screen, sizeof(screen));
@@ -19,6 +21,9 @@ int Console::initConsole()
 	//SetConsoleMode(input, ~ENABLE_ECHO_INPUT);
 	GetConsoleScreenBufferInfo(output, &screen);
 	GetCurrentConsoleFont(output, false, &font);
+	textAttribute = DEFAULT_BRUSH;
+	// Set Flags:
+	flags.ADVANCE_CURSOR = true;
 	// End initalization
 	initated = true;
 	ShowWindow(consoleWindow, SW_MAXIMIZE);
@@ -41,25 +46,30 @@ int Console::error(bool condition, STR title, STR content, bool exitProgram)
 
 void Console::clear(Point from)
 {
-	if (!initated) initConsole();
 	setCharacter(from, SPACE, screen.dwSize.X * screen.dwSize.Y);
 	setCursorPos(from);
 }
-
 void Console::clear()
 {
-	if (!initated) initConsole();
 	setCursorPos({ 0, 0 });
 	setCharacter(SPACE, screen.dwSize.X * screen.dwSize.Y);
 }
 
+Region Console::getScreenRegion()
+{
+	return Region({ 0, 0 }, Point(screen.dwSize.X, screen.dwSize.Y));
+}
+
 Pixel Console::getPixel(Point pos)
 {
-	if (!initated) initConsole();
 	CHAR_INFO ci;
 	SMALL_RECT rect = { 0,0,0,0 };
 	ReadConsoleOutput(output, &ci, { 1,1 }, pos.toCoord(), &rect);
+#ifndef UNICODE
+	return Pixel(ci.Char.AsciiChar, pos, ci.Attributes);
+#else
 	return Pixel(ci.Char.UnicodeChar, pos, ci.Attributes);
+#endif
 }
 void Console::getPixels(Region region, Pixel* buffer, int bufferLen)
 {
@@ -79,10 +89,8 @@ void Console::drawPixel(CHAR character, Point pos, Brush color)
 {
 	drawPixel(Pixel(character, pos, color));
 }
-
 void Console::drawPixel(Pixel pixel)
 {
-	if (!initated) initConsole();
 	if (!FAST_DRAW || getPixel(pixel.pos) != pixel)
 	{
 		Point prevPos = getCursorPos();
@@ -100,7 +108,6 @@ void Console::drawRegion(Region r, BrushEx brush)
 		drawPixel(brush.character, buffer[i], brush.brush);
 	free(buffer);
 }
-
 void Console::drawRegion(Region r, Brush color)
 {
 	Point* buffer = (Point*)malloc(sizeof(Point) * r.getArea());
@@ -112,7 +119,6 @@ void Console::drawRegion(Region r, Brush color)
 
 void Console::setAttribute(Point pos, Brush color, int length)
 {
-	if (!initated) initConsole();
 	Point prevPos = getCursorPos();
 	SetConsoleCursorPosition(output, pos.toCoord());
 	FillConsoleOutputAttribute(output, color, length, pos.toCoord(), &status);
@@ -122,10 +128,13 @@ void Console::setAttribute(Brush color, int length)
 {
 	setAttribute(getCursorPos(), color, length);
 }
-
+void Console::setTextAttribute(Brush color)
+{
+	textAttribute = color;
+	SetConsoleTextAttribute(output, color);
+}
 void Console::setCharacter(Point pos, CHAR character, int length)
 {
-	if (!initated) initConsole();
 	Point prevPos = getCursorPos();
 	SetConsoleCursorPosition(output, pos.toCoord());
 	FillConsoleOutputCharacter(output, character, length, pos.toCoord(), &status);
@@ -143,25 +152,67 @@ Console Console::operator >> (STR str)
 }
 void Console::print(STR string)
 {
-	if (!initated) initConsole();
-	WriteConsoleW(output, string, LEN(string), &status, NULL);
+	print(string, getCursorPos());
 }
-void Console::print(STR string, Point pos)
+void Console::printInRegion(STR string, Point relative, bool vertical, Region textBox, Vector stepOffset)
 {
-	if (!initated) initConsole();
+	Point pos;
+	pos.x = relative.x + textBox.leftTop.x;
+	pos.y = relative.y + textBox.leftTop.y;
 	size_t i;
 	for (i = 0; i < LEN(string); i++)
 	{
 		setCharacter(pos, string[i]);
-		if (pos.x <= (size_t)screen.dwSize.X)
+		setAttribute(pos, textAttribute);
+		if (pos.x <= textBox.rightBottom.x && (!vertical || pos.y <= textBox.rightBottom.y))
 		{
-			pos.x += 1;
+			pos.x += (!vertical) + stepOffset.x;
+			pos.y += (vertical) + stepOffset.y;
 		}
 		else {
-			pos.x = 0;
-			pos.y += 1;
+			if (!vertical)
+			{
+				pos.x = relative.x + textBox.leftTop.x;
+				pos.y += 1 + stepOffset.y;
+			}
+			else
+			{
+				pos.x += 1 + stepOffset.x;
+				pos.y = relative.y + textBox.leftTop.y;
+			}
 		}
 	}
+	if (flags.ADVANCE_CURSOR)
+		setCursorPos(pos);
+}
+
+void Console::print(STR string, Point pos, bool vertical, Vector stepOffset)
+{
+	size_t i;
+	for (i = 0; i < LEN(string); i++)
+	{
+		setCharacter(pos, string[i]);
+		setAttribute(pos, textAttribute);
+		if (pos.x <= (size_t)screen.dwSize.X && (!vertical || pos.y <= (size_t)screen.dwSize.Y))
+		{
+			if (!vertical) pos.x += 1 + stepOffset.x; else pos.y += 1 + stepOffset.y;
+			
+		}
+		else {
+			if (!vertical)
+			{
+				pos.x = 0;
+				pos.y += 1 + stepOffset.y;
+			}
+			else 
+			{
+				pos.x += 1 + stepOffset.x;
+				pos.y = 0;
+			}
+		}
+	}
+	if (flags.ADVANCE_CURSOR)
+		setCursorPos(pos);
 }
 
 Console Console::operator<<(STR str)
@@ -171,7 +222,6 @@ Console Console::operator<<(STR str)
 }
 void Console::insert(STR string)
 {
-	if (!initated) initConsole();
 	size_t i;
 	DWORD tmp;
 	INPUT_RECORD* records = (INPUT_RECORD*)malloc(LEN(string) * sizeof(INPUT_RECORD));
@@ -209,17 +259,17 @@ Point Console::getCursorPoint()
 	ScreenToClient(consoleWindow, &cursorPos);
 	return Point(cursorPos.x / font.dwFontSize.X, cursorPos.y / font.dwFontSize.Y);
 }
-
-/***
-**
-** REGION CLASS:
-**
-***/
-
+#endif
+/// REGION CLASS:
+#ifdef CODE_REGION_REGION_SUB_CLASS
 Region::Region()
 {
 	leftTop = { 0, 0 };
 	rightBottom = { 0, 0 };
+}
+Region::Region(int flag)
+{
+	valid = flag > 0;
 }
 Region::Region(Point corner, Point opposite)
 {
@@ -266,12 +316,9 @@ void Region::getPoints(Point* buffer, int bufferLen)
 		buffer[i] = Point(leftTop.x + diffX, leftTop.y + diffY);
 	}
 }
-
-/***
-**
-** PIXEL CLASS:
-**
-***/
+#endif
+/// PIXEL CLASS:
+#ifdef CODE_REGION_PIXEL_SUB_CLASS
 Pixel::Pixel()
 {
 	chr  = DEFAULT_PIXEL.chr;
@@ -315,12 +362,9 @@ bool Pixel::operator!=(Pixel other)
 {
 	return !(*this == other);
 }
-
-/***
-**
-** POINT CLASS:
-**
-***/
+#endif
+/// POINT CLASS:
+#ifdef CODE_REGION_POINT_SUB_CLASS
 Point::Point()
 {
 	x = 0; y = 0;
@@ -380,41 +424,43 @@ bool Point::operator==(Point other)
 {
 	return (x == other.x && y == other.y);
 }
-
 bool Point::operator>(Point other)
 {
 	return (x > other.x && y > other.y);
 }
-
 bool Point::operator<(Point other)
 {
 	return (x < other.x && y < other.y);
 }
-
 bool Point::operator>=(Point other)
 {
 	return (x >= other.x && y >= other.y);
 }
-
 bool Point::operator<=(Point other)
 {
 	return (x <= other.x && y <= other.y);
 }
-
-/***
-**
-** VECTOR CLASS:
-**
-***/
+Point Point::operator+(Point other)
+{
+	return Point(x + other.x, y + other.y);
+}
+#endif
+/// VECTOR CLASS:
+#ifdef CODE_REGION_VECTOR_SUB_CLASS
 Vector::Vector()
 {
-	x = 0; y = 0;
+	x = 0; y = 0; m = 0;
 }
 Vector::Vector(int _x, int _y)
 {
-	x = _x; y = _y;
+	x = _x; y = _y; m = 0;
+}
+Vector::Vector(int _x, int _y, int m)
+{
+	x = _x; y = _y; m = 0;
 }
 Vector Vector::normalize()
 {
 	return Vector({ (x < 0) ? -1 : (x > 0), (y < 0) ? -1 : (y > 0) });
 }
+#endif
