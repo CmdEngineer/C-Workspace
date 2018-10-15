@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 # Private Projects
+=======
+# Private Projects - PC
+>>>>>>> PC
 I pretty much use this to sync between my laptop to PC. 
 Nothing cool really, believe me anything cool will get his own repository.
 
