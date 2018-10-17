@@ -23,13 +23,6 @@ To pass to STR and CHAR use TEXT(quote)
 // FAST_DRAW -> When enabled will check each pixel before drawing to not waste time.
 #define FAST_DRAW FALSE
 
-/// Color defines
-#define BACKGROUND_WHITE BACKGROUND_RED | BACKGROUND_GREEN | BACKGROUND_BLUE
-#define BACKGROUND_DEFAULT 0
-#define FOREGROUND_WHITE FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE
-#define FOREGROUND_DEFAULT FOREGROUND_WHITE
-#define DEFAULT_BRUSH BACKGROUND_DEFAULT | FOREGROUND_DEFAULT
-
 #define CODE_ERROR -1
 #define CODE_OK 0
 
@@ -46,6 +39,16 @@ To pass to STR and CHAR use TEXT(quote)
 	#define SPACE L' '
 #endif
 
+/// Color defines
+#define BACKGROUND_WHITE BACKGROUND_RED | BACKGROUND_GREEN | BACKGROUND_BLUE
+#define BACKGROUND_DEFAULT 0
+#define FOREGROUND_WHITE FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE
+#define FOREGROUND_DEFAULT FOREGROUND_WHITE
+#define DEFAULT_BRUSH BACKGROUND_DEFAULT | FOREGROUND_DEFAULT
+#define DEFAULT_BRUSH_EX BrushEx(BACKGROUND_DEFAULT | FOREGROUND_DEFAULT, SPACE)
+#define DEFAULT_PALETTE_SIZE 1
+#define DEFAULT_TEXTURE_WIDTH 16
+#define DEFAULT_TEXTURE_HEIGHT 16
 #define DEFAULT_PIXEL Pixel(SPACE, {0, 0}, BACKGROUND_DEFAULT | FOREGROUND_DEFAULT)
 #define INVALID_PIXEL Pixel(false);
 #define INVALID_POINT Point(false);
@@ -55,68 +58,17 @@ To pass to STR and CHAR use TEXT(quote)
 #define EQUAL 0
 #define NEGATIVE -1
 
-
-class Font
-{
-
-};
-namespace TypeFace
-{
-	namespace size3x3 {
-		static int space_bar[3][3] = { 0, 0, 0, 0, 0, 0, 0, 0, 0 };
-		static int number[10][3][3] = {
-			{ 1, 1, 1,  1, 0, 1,  1, 1, 1 },
-			{ 1, 1, 0,  0, 1, 0,  1, 1, 1 },
-			{ 1, 1, 0,  0, 1, 0,  0, 1, 1 },
-			{ 1, 1, 1,  0, 1, 1,  1, 1, 1 },
-			{ 1, 0, 1,  1, 1, 1,  0, 0, 1 },
-			{ 0, 1, 1,  0, 1, 0,  1, 1, 0 },
-			{ 1, 0, 0,  1, 1, 1,  1, 1, 1 },
-			{ 1, 1, 1,  0, 0, 1,  0, 0, 1 },
-			{ 1, 1, 1,  1, 1, 1,  1, 1, 1 },
-			{ 1, 1, 1,  1, 1, 1,  0, 0, 1 },
-		};
-		static int character[26][3][3] =
-		{
-			{ 0, 1, 0,  1, 1, 1,  1, 0, 1 },
-			{ 1, 1, 0,  1, 1, 1,  1, 1, 0 },
-			{ 1, 1, 1,  1, 0, 0,  1, 1, 1 },
-			{ 1, 1, 0,  1, 0, 1,  1, 1, 0 },
-			{ 1, 0, 0,  1, 1, 0,  1, 1, 1 },
-			{ 1, 1, 1,  1, 1, 0,  1, 0, 0 },
-			{ 1, 1, 0,  1, 1, 1,  1, 1, 1 },
-			{ 1, 0, 1,  1, 1, 1,  1, 0, 1 },
-			{ 1, 1, 1,  0, 1, 0,  1, 1, 1 },
-			{ 0, 1, 1,  0, 0, 1,  1, 1, 0 },
-			{ 1, 0, 1,  1, 1, 0,  1, 0, 1 },
-			{ 1, 0, 0,  1, 0, 0,  1, 1, 1 },
-			{ 1, 1, 1,  1, 1, 1,  1, 0, 1 },
-			{ 1, 1, 0,  1, 0, 1,  1, 0, 1 },
-			{ 0, 1, 0,  1, 0, 1,  0, 1, 0 },
-			{ 1, 1, 1,  1, 1, 1,  1, 0, 0 },
-			{ 0, 1, 0,  1, 0, 1,  0, 1, 1 },
-			{ 1, 1, 0,  1, 1, 0,  1, 0, 1 },
-			{ 0, 1, 1,  0, 1, 0,  1, 1, 0 },
-			{ 1, 1, 1,  0, 1, 0,  0, 1, 0 },
-			{ 1, 0, 1,  1, 0, 1,  1, 1, 1 },
-			{ 1, 0, 1,  1, 0, 1,  0, 1, 0 },
-			{ 1, 0, 1,  1, 1, 1,  1, 1, 1 },
-			{ 1, 0, 1,  0, 1, 0,  1, 0, 1 },
-			{ 1, 0, 1,  0, 1, 0,  0, 1, 0 },
-			{ 1, 1, 0,  0, 1, 0,  0, 1, 1 } 
-		};
-	}
-}
-
 typedef WORD Brush;
 
-class BrushEx { 
+class BrushEx {
 public:
 	Brush brush;
 	CHAR character;
 	BrushEx() { brush = DEFAULT_BRUSH; character = SPACE; };
 	BrushEx(Brush _brush) { brush = _brush; character = SPACE; };
 	BrushEx(Brush _brush, CHAR _character) { brush = _brush; character = _character; };
+	bool operator==(BrushEx other) { return (brush == other.brush && character == other.character); };
+	bool operator!=(BrushEx other) { return !(*this == other); };
 };
 
 class Vector
@@ -172,6 +124,130 @@ private:
 	bool valid;
 };
 
+class Palette
+{
+public:
+	size_t size;
+	Palette();
+	Palette(size_t size);
+	void Destroy();
+	bool Set(int id, Brush brush);
+	bool SetEx(int id, BrushEx brush);
+	bool Exists(int id);
+	bool Exists(Brush brush);
+	bool Exists(BrushEx brush);
+	bool Remove(int id);
+	Brush Get(int id);
+	BrushEx GetEx(int id);
+private:
+	BrushEx* data;
+};
+
+class Texture
+{
+public:
+	Palette* palette;
+	size_t width, height;
+	Texture();
+	Texture(size_t _width, size_t _height, size_t paletteSize);
+	void Destroy();
+	void fromArray(int* arr);
+	BrushEx At(Point p);
+private:
+	int** data;
+	void initData();
+};
+
+namespace TypeFace
+{
+	namespace size3x3 {
+		static int all[45][9] = {
+			// space bar
+			{ 0, 0, 0, 0, 0, 0, 0, 0, 0 },
+			// number
+			{ 1, 1, 1,  1, 0, 1,  1, 1, 1 },
+			{ 1, 1, 0,  0, 1, 0,  1, 1, 1 },
+			{ 1, 1, 0,  0, 1, 0,  0, 1, 1 },
+			{ 1, 1, 1,  0, 1, 1,  1, 1, 1 },
+			{ 1, 0, 1,  1, 1, 1,  0, 0, 1 },
+			{ 0, 1, 1,  0, 1, 0,  1, 1, 0 },
+			{ 1, 0, 0,  1, 1, 1,  1, 1, 1 },
+			{ 1, 1, 1,  0, 0, 1,  0, 0, 1 },
+			{ 1, 1, 1,  1, 1, 1,  1, 1, 1 },
+			{ 1, 1, 1,  1, 1, 1,  0, 0, 1 },
+			// character
+			{ 0, 1, 0,  1, 1, 1,  1, 0, 1 },
+			{ 1, 1, 0,  1, 1, 1,  1, 1, 0 },
+			{ 1, 1, 1,  1, 0, 0,  1, 1, 1 },
+			{ 1, 1, 0,  1, 0, 1,  1, 1, 0 },
+			{ 1, 0, 0,  1, 1, 0,  1, 1, 1 },
+			{ 1, 1, 1,  1, 1, 0,  1, 0, 0 },
+			{ 1, 1, 0,  1, 1, 1,  1, 1, 1 },
+			{ 1, 0, 1,  1, 1, 1,  1, 0, 1 },
+			{ 1, 1, 1,  0, 1, 0,  1, 1, 1 },
+			{ 0, 1, 1,  0, 0, 1,  1, 1, 0 },
+			{ 1, 0, 1,  1, 1, 0,  1, 0, 1 },
+			{ 1, 0, 0,  1, 0, 0,  1, 1, 1 },
+			{ 1, 1, 1,  1, 1, 1,  1, 0, 1 },
+			{ 1, 1, 0,  1, 0, 1,  1, 0, 1 },
+			{ 0, 1, 0,  1, 0, 1,  0, 1, 0 },
+			{ 1, 1, 1,  1, 1, 1,  1, 0, 0 },
+			{ 0, 1, 0,  1, 0, 1,  0, 1, 1 },
+			{ 1, 1, 0,  1, 1, 0,  1, 0, 1 },
+			{ 0, 1, 1,  0, 1, 0,  1, 1, 0 },
+			{ 1, 1, 1,  0, 1, 0,  0, 1, 0 },
+			{ 1, 0, 1,  1, 0, 1,  1, 1, 1 },
+			{ 1, 0, 1,  1, 0, 1,  0, 1, 0 },
+			{ 1, 0, 1,  1, 1, 1,  1, 1, 1 },
+			{ 1, 0, 1,  0, 1, 0,  1, 0, 1 },
+			{ 1, 0, 1,  0, 1, 0,  0, 1, 0 },
+			{ 1, 1, 0,  0, 1, 0,  0, 1, 1 }
+		};
+		static int space_bar[9] = { 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+		static int number[10][9] = {
+			{ 1, 1, 1,  1, 0, 1,  1, 1, 1 },
+			{ 1, 1, 0,  0, 1, 0,  1, 1, 1 },
+			{ 1, 1, 0,  0, 1, 0,  0, 1, 1 },
+			{ 1, 1, 1,  0, 1, 1,  1, 1, 1 },
+			{ 1, 0, 1,  1, 1, 1,  0, 0, 1 },
+			{ 0, 1, 1,  0, 1, 0,  1, 1, 0 },
+			{ 1, 0, 0,  1, 1, 1,  1, 1, 1 },
+			{ 1, 1, 1,  0, 0, 1,  0, 0, 1 },
+			{ 1, 1, 1,  1, 1, 1,  1, 1, 1 },
+			{ 1, 1, 1,  1, 1, 1,  0, 0, 1 },
+		};
+		static int character[26][9] =
+		{
+			{ 0, 1, 0,  1, 1, 1,  1, 0, 1 },
+			{ 1, 1, 0,  1, 1, 1,  1, 1, 0 },
+			{ 1, 1, 1,  1, 0, 0,  1, 1, 1 },
+			{ 1, 1, 0,  1, 0, 1,  1, 1, 0 },
+			{ 1, 0, 0,  1, 1, 0,  1, 1, 1 },
+			{ 1, 1, 1,  1, 1, 0,  1, 0, 0 },
+			{ 1, 1, 0,  1, 1, 1,  1, 1, 1 },
+			{ 1, 0, 1,  1, 1, 1,  1, 0, 1 },
+			{ 1, 1, 1,  0, 1, 0,  1, 1, 1 },
+			{ 0, 1, 1,  0, 0, 1,  1, 1, 0 },
+			{ 1, 0, 1,  1, 1, 0,  1, 0, 1 },
+			{ 1, 0, 0,  1, 0, 0,  1, 1, 1 },
+			{ 1, 1, 1,  1, 1, 1,  1, 0, 1 },
+			{ 1, 1, 0,  1, 0, 1,  1, 0, 1 },
+			{ 0, 1, 0,  1, 0, 1,  0, 1, 0 },
+			{ 1, 1, 1,  1, 1, 1,  1, 0, 0 },
+			{ 0, 1, 0,  1, 0, 1,  0, 1, 1 },
+			{ 1, 1, 0,  1, 1, 0,  1, 0, 1 },
+			{ 0, 1, 1,  0, 1, 0,  1, 1, 0 },
+			{ 1, 1, 1,  0, 1, 0,  0, 1, 0 },
+			{ 1, 0, 1,  1, 0, 1,  1, 1, 1 },
+			{ 1, 0, 1,  1, 0, 1,  0, 1, 0 },
+			{ 1, 0, 1,  1, 1, 1,  1, 1, 1 },
+			{ 1, 0, 1,  0, 1, 0,  1, 0, 1 },
+			{ 1, 0, 1,  0, 1, 0,  0, 1, 0 },
+			{ 1, 1, 0,  0, 1, 0,  0, 1, 1 }
+		};
+	}
+}
+
 class Region
 {
 public:
@@ -222,6 +298,8 @@ public:
 	void drawRegion(Region r, BrushEx brush);
 	void drawRegion(Region r, Brush color);
 	
+	void drawTexture(Texture t, Point pos);
+
 	void setAttribute(Point pos, Brush color = BACKGROUND_WHITE, int length = 1);
 	void setAttribute(Brush color = BACKGROUND_WHITE, int length = 1);
 	void setTextAttribute(Brush color);

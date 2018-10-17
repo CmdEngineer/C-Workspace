@@ -1,14 +1,7 @@
 #include "Console.h"
 
-// Code Regions
-#define CODE_REGION_CONSOLE_CLASS 1
-#define CODE_REGION_REGION_SUB_CLASS 2
-#define CODE_REGION_PIXEL_SUB_CLASS 3
-#define CODE_REGION_POINT_SUB_CLASS 4
-#define CODE_REGION_VECTOR_SUB_CLASS 5
-
 /// CONSOLE CLASS:
-#ifdef CODE_REGION_CONSOLE_CLASS
+#ifdef TRUE
 int Console::initConsole()
 {
 	ZeroMemory(&screen, sizeof(screen));
@@ -115,6 +108,19 @@ void Console::drawRegion(Region r, Brush color)
 	for (int i = 0; i < r.getArea(); i++)
 		drawPixel(SPACE, buffer[i], color);
 	free(buffer);
+}
+
+void Console::drawTexture(Texture t, Point pos)
+{
+	BrushEx  tempBrush;
+	for (size_t i = 0; i < t.height; i++)
+	{
+		for (size_t j = 0; j < t.width; j++)
+		{
+			tempBrush = t.At({ i, j });
+			drawPixel(tempBrush.character, pos + Point(i, j), tempBrush.brush);
+		}
+	}
 }
 
 void Console::setAttribute(Point pos, Brush color, int length)
@@ -261,7 +267,7 @@ Point Console::getCursorPoint()
 }
 #endif
 /// REGION CLASS:
-#ifdef CODE_REGION_REGION_SUB_CLASS
+#ifdef TRUE
 Region::Region()
 {
 	leftTop = { 0, 0 };
@@ -318,7 +324,7 @@ void Region::getPoints(Point* buffer, int bufferLen)
 }
 #endif
 /// PIXEL CLASS:
-#ifdef CODE_REGION_PIXEL_SUB_CLASS
+#ifdef TRUE
 Pixel::Pixel()
 {
 	chr  = DEFAULT_PIXEL.chr;
@@ -364,7 +370,7 @@ bool Pixel::operator!=(Pixel other)
 }
 #endif
 /// POINT CLASS:
-#ifdef CODE_REGION_POINT_SUB_CLASS
+#ifdef TRUE
 Point::Point()
 {
 	x = 0; y = 0;
@@ -446,7 +452,7 @@ Point Point::operator+(Point other)
 }
 #endif
 /// VECTOR CLASS:
-#ifdef CODE_REGION_VECTOR_SUB_CLASS
+#ifdef TRUE
 Vector::Vector()
 {
 	x = 0; y = 0; m = 0;
@@ -462,5 +468,159 @@ Vector::Vector(int _x, int _y, int m)
 Vector Vector::normalize()
 {
 	return Vector({ (x < 0) ? -1 : (x > 0), (y < 0) ? -1 : (y > 0) });
+}
+#endif
+
+/// PALETTE CLASS:
+#ifdef TRUE
+Palette::Palette() : Palette(DEFAULT_PALETTE_SIZE)
+{ }
+Palette::Palette(size_t _size)
+{
+	size = _size;
+	data = (BrushEx*)malloc(sizeof(BrushEx) * _size);
+	for (size_t i = 0; i < _size; i++)
+	{
+		data[i] = DEFAULT_BRUSH_EX;
+	}
+}
+void Palette::Destroy()
+{
+	free(data);
+}
+
+bool Palette::SetEx(int id, BrushEx brush)
+{
+	if (id < (int)size)
+	{
+		data[id] = brush;
+		return true;
+	}
+	return false;
+}
+
+bool Palette::Set(int id, Brush brush)
+{
+	return SetEx(id, BrushEx(brush, SPACE));
+}
+
+bool Palette::Exists(int id)
+{
+	for (size_t i = 0; i < size; i++)
+	{
+		if (data[i] != DEFAULT_BRUSH_EX)
+		{
+			return true;
+		}
+	}
+	return false;
+}
+bool Palette::Exists(BrushEx brush)
+{
+
+	for (size_t i = 0; i < size; i++)
+	{
+		if (data[i] == brush)
+		{
+			return true;
+		}
+	}
+	return false;
+}
+
+bool Palette::Exists(Brush brush)
+{
+	return Exists(BrushEx(brush, SPACE));
+}
+
+bool Palette::Remove(int id)
+{
+	if (id < (int)size && !Exists(id))
+	{
+		data[id] = DEFAULT_BRUSH_EX;
+		return true;
+	}
+	return false;
+}
+
+Brush Palette::Get(int id)
+{
+	return data[id].brush;
+}
+
+BrushEx Palette::GetEx(int id)
+{
+	return data[id];
+}
+
+#endif
+
+/// TEXTURE CLASS:
+#ifdef TRUE
+//
+// Programming notes:
+// data[height][width] = {id}
+//
+Texture::Texture() : Texture(DEFAULT_TEXTURE_WIDTH, DEFAULT_TEXTURE_HEIGHT, DEFAULT_PALETTE_SIZE)
+{ }
+
+Texture::Texture(size_t _width, size_t _height, size_t paletteSize)
+{
+	width = _width;
+	height = _height;
+	palette = (Palette*)malloc(sizeof(Palette));
+	*palette = Palette(paletteSize);
+	initData();
+}
+
+void Texture::initData()
+{
+	data = (int**)malloc(height * sizeof(int*));
+	for (size_t i = 0; i < height; i++)
+	{
+		data[i] = (int*)malloc(width * sizeof(int));
+		for (size_t j = 0; j < width; j++)
+		{
+			data[i][j] = 0;
+		}
+	}
+}
+
+void Texture::fromArray(int* arr)
+{
+	size_t k = 0;
+	for (size_t y = 0; y < height; y++)
+	{
+		for (size_t x = 0; x < width; x++)
+		{
+			data[y][x] = *(arr + y * width + x);
+		}
+	}
+}
+
+BrushEx Texture::At(Point p)
+{
+	int value = 0;
+	if (p < Point(width, height))
+	{
+		value = data[p.y][p.x];
+		if (palette->Exists(value))
+		{
+			return palette->GetEx(value);
+		}
+		else return DEFAULT_BRUSH_EX;
+	}
+	return DEFAULT_BRUSH_EX;
+}
+
+void Texture::Destroy()
+{
+	for (size_t i = 0; i < height; i++)
+	{
+		free(data[i]);
+	}
+	free(data);
+	palette->Destroy();
+	free(palette);
 }
 #endif
