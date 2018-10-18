@@ -94,6 +94,7 @@ public:
 	Point(COORD coord);
 	COORD toCoord();
 	Vector getVector(Point other);
+	Point forceApply(Vector vector);
 	static bool parsePoints(Point* buffer, int bufferLen, int* grid, int width, int height);
 	bool operator==(Point other);
 	bool operator>(Point other);
