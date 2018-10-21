@@ -4,16 +4,16 @@
 #ifdef TRUE
 	int Console::initConsole()
 	{
-		ZeroMemory(&screen, sizeof(screen));
-		ZeroMemory(&font, sizeof(font));
+		ZeroMemory(&screen, sizeof(CONSOLE_SCREEN_BUFFER_INFOEX));
+		//ZeroMemory(&font, sizeof(CONSOLE_FONT_INFOEX));
 		input = GetStdHandle(STD_INPUT_HANDLE);
 		output = GetStdHandle(STD_OUTPUT_HANDLE);
 		consoleWindow = GetConsoleWindow();
-		error((consoleWindow == INVALID_HANDLE_VALUE), TEXT("Console Error"), TEXT("GetConsoleWindow"));
-		error((input == INVALID_HANDLE_VALUE || output == INVALID_HANDLE_VALUE), TEXT("Console Error"), TEXT("GetStdHandle"));
 		//SetConsoleMode(input, ~ENABLE_ECHO_INPUT);
 		GetConsoleScreenBufferInfo(output, &screen);
-		GetCurrentConsoleFont(output, false, &font);
+		font.cbSize = sizeof(font);
+		GetCurrentConsoleFontEx(GetStdHandle(STD_OUTPUT_HANDLE), false, &font);
+
 		textAttribute = DEFAULT_BRUSH;
 		// Set Flags:
 		flags.ADVANCE_CURSOR = true;
@@ -251,13 +251,26 @@
 		ir.Event.KeyEvent.wRepeatCount = 1;
 		return ir;
 	}
+	
+	void Console::setFontSize(Point size, bool maximized)
+	{
+		font.dwFontSize.X = size.x;
+		font.dwFontSize.Y = size.y;
+		SetCurrentConsoleFontEx(output, maximized, &font);
+	}
+	Point Console::getSize(bool maximized)
+	{
+		CONSOLE_SCREEN_BUFFER_INFO sb;
+		GetConsoleScreenBufferInfo(output, &sb);
+		if (maximized) return sb.dwMaximumWindowSize;
+		return sb.dwSize;
+	}
 	Point Console::getCursorPos()
 	{
 		CONSOLE_SCREEN_BUFFER_INFO sb;
 		GetConsoleScreenBufferInfo(output, &sb);
 		return sb.dwCursorPosition;
 	}
-
 	void Console::setCursorPos(Point pos)
 	{
 		SetConsoleCursorPosition(output, pos.toCoord());
@@ -638,7 +651,6 @@
 	Graphics::Graphics(bool flag)
 	{
 		valid = flag;
-		if (valid) console = Console();
 	}
 	Graphics::Graphics(Console _console)
 	{
@@ -648,46 +660,28 @@
 	void Graphics::DrawLine(Point p1, Point p2, BrushEx brush)
 	{
 		Point start = Point((p1.x < p2.x) ? p1.x : p2.x, (p1.y < p2.y) ? p1.y : p2.y);
+		int distance = sqrt(pow(p2.x - p1.x, 2) + pow(p2.y - p1.y, 2));
 		float slope = (((float)p1.y - p2.y)) / (((float)p1.x - p2.x));
-		/*for (size_t i = 0; i < abs((int)p2.x - (int)p1.x); i++)
+		int prevHeight = start.y;
+		for (size_t i = 0; i <= abs((int)p2.x - (int)p1.x); i++)
 		{
-			Point pos = Point(start.x + i, slope * (start.x + i) - slope * start.x + start.y);
+			Point pos = Point(start.x + i, slope * i + start.y);
 			console.drawPixel(brush.character, pos, brush.brush);
-		}*/
-		if (slope != 0)
-		{
-			for (size_t j = 0; j < abs((int)p2.y - (int)p1.y); j++)
+			for (size_t j = 0; j < (pos.y - prevHeight); j++)
 			{
-				Point pos = Point(start.x + (0 - start.x + start.y - (start.y + j)) / slope, start.y + j);
+				console.drawPixel(brush.character, Point(pos.x, pos.y - j), brush.brush);
+			}
+			prevHeight = pos.y;
+		}
+		if (p1.x == p2.x)
+		{
+			for (size_t j = 0; j <= abs((int)p2.y - (int)p1.y); j++)
+			{
+				Point pos = Point(start.x, start.y + j);
 				console.drawPixel(brush.character, pos, brush.brush);
 			}
 		}
 	}
-	/*
-	void Graphics::DrawLine(Point p1, Point p2, BrushEx brush)
-	{
-		if (p1.x - p2.x == 0)
-		{
-			for (size_t i = 0; i < abs((int)p1.y - (int)p2.y); i++)
-			{
-				console.drawPixel(brush.character, Point(p1.x, p1.y + i), brush.brush);
-			}
-			return;
-		}
-		Point start = Point((p1.x < p2.x) ? p1.x : p2.x, (p1.y < p2.y) ? p1.y : p2.y);
-		Point last = start;
-		float slope = (((float)p1.y - p2.y)) / (((float)p1.x - p2.x));
-		for (int i = 0; i < abs((int)p2.x - (int)p1.x); i++)
-		{
-			Point pos = Point(start.x + i, slope * (start.x + i) - slope * start.x + start.y);
-			console.drawPixel(brush.character, pos, brush.brush);
-			for (size_t j = 0; j < abs((int)last.y - (int)pos.y); j++)
-			{
-				console.drawPixel(brush.character, pos + Point(0, j), brush.brush);
-			}
-			last = pos;
-		}
-	}*/
 
 	void Graphics::DrawRect(Point c1, Point c2, size_t borderSize, BrushEx brush)
 	{

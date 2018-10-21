@@ -308,7 +308,7 @@ private:
 	DWORD cWritten, status;
 	Brush textAttribute;
 public:
-	CONSOLE_FONT_INFO font;
+	CONSOLE_FONT_INFOEX font;
 	CONSOLE_SCREEN_BUFFER_INFO screen;
 	union {
 		bool ADVANCE_CURSOR;
@@ -348,6 +348,8 @@ public:
 	Console operator<<(STR str);
 	void insert(STR string);
 
+	void setFontSize(Point size, bool maximized);
+	Point getSize(bool maximized);
 	void setCursorPos(Point pos);
 	Point getCursorPos();
 	Point getCursorPoint();
