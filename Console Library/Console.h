@@ -268,7 +268,7 @@ namespace TypeFace
 		};
 	}
 	namespace size5x5 {
-		static int character[26][5][5] = {
+		static int character[26][25] = {
 			{ 1, 1, 1, 1, 1, 1, 0, 0, 0, 1, 1, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 1 },
 			{ 1, 1, 1, 1, 1, 1, 0, 0, 0, 1, 1, 1, 1, 1, 0, 1, 0, 0, 0, 1, 1, 1, 1, 1, 1 },
 			{ 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 1, 1, 1, 1 },
@@ -298,76 +298,71 @@ namespace TypeFace
 	}
 }
 
-static class Console
+namespace console
 {
-private:
-	static HWND consoleWindow;
-	static HANDLE input;
-	static HANDLE output;
+	static HWND consoleWindow = GetConsoleWindow();
+	static HANDLE input = GetStdHandle(STD_INPUT_HANDLE);
+	static HANDLE output = GetStdHandle(STD_OUTPUT_HANDLE);
 	static POINT cursorPos;
 	static DWORD cWritten, status;
-	static Brush textAttribute;
-	static CONSOLE_FONT_INFOEX font;
-	static CONSOLE_SCREEN_BUFFER_INFO screen;
-public:
+	static Brush _textAttribute = DEFAULT_BRUSH;
 	static union {
 		bool ADVANCE_CURSOR = true;
 	} flags;
-	static int initConsole();
 
-	static int error(bool condition, STR title, STR content, bool exitProgram = true);
+	int error(bool condition, STR title, STR content, bool exitProgram = true);
 
-	static void clear(Point from);
-	static void clear();
-	static void maximize();
-	static void allowInput(bool flag);
+	void clear(Point from);
+	void clear();
+	void maximize();
+	void allowInput(bool flag);
 
-	static Region getScreenRegion();
-	static CONSOLE_SCREEN_BUFFER_INFO getScreenInfo();
-	static CONSOLE_FONT_INFOEX getFont();
+	Region getScreenRegion();
+	CONSOLE_SCREEN_BUFFER_INFO getScreenInfo();
+	CONSOLE_FONT_INFOEX getFont();
 
-	static Pixel getPixel(Point pos);
-	static void getPixels(Region region, Pixel* buffer, int bufferLen);
+	Pixel getPixel(Point pos);
+	void getPixels(Region region, Pixel* buffer, int bufferLen);
 
-	static void drawPixel(CHAR character, Point pos, Brush color);
-	static void drawPixel(Pixel pixel);
+	void drawPixel(CHAR character, Point pos, Brush color);
+	void drawPixel(Pixel pixel);
 
-	static void drawRegion(Region r, BrushEx brush);
-	static void drawRegion(Region r, Brush color);
+	void drawRegion(Region r, BrushEx brush);
+	void drawRegion(Region r, Brush color);
 	
-	static void drawTexture(Texture t, Point pos);
+	void drawTexture(Texture t, Point pos);
 
-	static void setAttribute(Point pos, Brush color = BACKGROUND_WHITE, int length = 1);
-	static void setAttribute(Brush color = BACKGROUND_WHITE, int length = 1);
-	static void setTextAttribute(Brush color);
+	void setAttribute(Point pos, Brush color = BACKGROUND_WHITE, int length = 1);
+	void setAttribute(Brush color = BACKGROUND_WHITE, int length = 1);
+	void setTextAttribute(Brush color);
 
-	static void setCharacter(Point pos, CHAR character = SPACE, int length = 1);
-	static void setCharacter(CHAR character = SPACE, int length = 1);
+	void setCharacter(Point pos, CHAR character = SPACE, int length = 1);
+	void setCharacter(CHAR character = SPACE, int length = 1);
 
-	Console operator>>(STR str);
-	static void printInRegion(STR string, Point relative, bool vertical, Region textBox, Vector stepOffset = { 0, 0 });
-	static void print(STR string, Point pos, bool vertical = false, Vector stepOffset = {0, 0});
-	static void print(STR string);
+	//Console operator>>(STR str);
+	void printInRegion(STR string, Point relative, bool vertical, Region textBox, Vector stepOffset = { 0, 0 });
+	void print(STR string, Point pos, bool vertical = false, Vector stepOffset = {0, 0});
+	void print(STR string);
 	
-	Console operator<<(STR str);
-	static void insert(STR string);
+	//Console operator<<(STR str);
+	void insert(STR string);
 
-	static void setFontSize(Point size, bool maximized);
-	static Point getSize(bool maximized);
-	static void setCursorPos(Point pos);
-	static Point getCursorPos();
-	static Point getCursorPoint();
+	void setFontSize(Point size, bool maximized);
+	Point getSize(bool maximized);
+	void setCursorPos(Point pos);
+	Point getCursorPos();
+	Point getCursorPoint();
 
-	static INPUT_RECORD charAsInput(CHAR chr);
+	INPUT_RECORD charAsInput(CHAR chr);
 
-	Console() { }
+	//Console() { }
 };
 
 class Graphics
 {
 public:
 	Graphics(bool flag);
-	Graphics(Console _console);
+	//Graphics(Console _console);
 
 	void DrawLine(Point p1, Point p2, BrushEx brush);
 
@@ -379,6 +374,6 @@ public:
 
 	bool IsValid() { return valid; }
 private:
-	Console console;
+	//Console console;
 	bool valid = true;
 };

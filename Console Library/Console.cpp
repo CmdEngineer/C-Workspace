@@ -2,16 +2,13 @@
 
 /// CONSOLE CLASS:
 #ifdef TRUE
-	HWND Console::consoleWindow = GetConsoleWindow();
-	HANDLE Console::input = GetStdHandle(STD_INPUT_HANDLE);
-	HANDLE Console::output = GetStdHandle(STD_OUTPUT_HANDLE);
-	POINT Console::cursorPos;
-	DWORD ConsolecWritten, Console::status;
-	Brush Console::textAttribute = DEFAULT_BRUSH;
-	CONSOLE_FONT_INFOEX Console::font = getFont();
-	CONSOLE_SCREEN_BUFFER_INFO Console::screen = getScreenInfo();
-
-	int Console::error(bool condition, STR title, STR content, bool exitProgram)
+	extern HWND consoleWindow;
+	extern HANDLE input;
+	extern HANDLE output;
+	extern POINT cursorPos;
+	extern DWORD cWritten, status;
+	extern Brush __textAttributee;
+	int console::error(bool condition, STR title, STR content, bool exitProgram)
 	{
 		if (condition)
 		{
@@ -25,49 +22,54 @@
 		else return CODE_OK;
 	}
 
-	void Console::clear(Point from)
+	void console::clear(Point from)
 	{
+		CONSOLE_SCREEN_BUFFER_INFO screen = getScreenInfo();
 		setCharacter(from, SPACE, screen.dwSize.X * screen.dwSize.Y);
 		setAttribute(from, BACKGROUND_DEFAULT, screen.dwSize.X * screen.dwSize.Y);
 		setCursorPos(from);
 	}
-	void Console::clear()
+	void console::clear()
 	{
+		CONSOLE_SCREEN_BUFFER_INFO screen = getScreenInfo();
 		setCursorPos({ 0, 0 });
 		setCharacter(SPACE, screen.dwSize.X * screen.dwSize.Y);
 		setAttribute(BACKGROUND_DEFAULT, screen.dwSize.X * screen.dwSize.Y);
 	}
-	void Console::maximize()
+	void console::maximize()
 	{
 		ShowWindow(consoleWindow, SW_MAXIMIZE);
 	}
-	void Console::allowInput(bool flag)
+	void console::allowInput(bool flag)
 	{
 		if (flag)
 		{
 			SetConsoleMode(input, ENABLE_ECHO_INPUT);
 		} else SetConsoleMode(input, ~ENABLE_ECHO_INPUT);
 	}
-	CONSOLE_FONT_INFOEX Console::getFont()
+	
+	CONSOLE_FONT_INFOEX console::getFont()
 	{
+		CONSOLE_FONT_INFOEX font;
 		ZeroMemory(&font, sizeof(CONSOLE_FONT_INFOEX));
-		GetCurrentConsoleFontEx(GetStdHandle(STD_OUTPUT_HANDLE), false, &font);
 		font.cbSize = sizeof(font);
+		GetCurrentConsoleFontEx(output, false, &font);
 		return font;
 	}
-
-	CONSOLE_SCREEN_BUFFER_INFO Console::getScreenInfo()
+	CONSOLE_SCREEN_BUFFER_INFO console::getScreenInfo()
 	{
+		CONSOLE_SCREEN_BUFFER_INFO screen;
 		ZeroMemory(&screen, sizeof(CONSOLE_SCREEN_BUFFER_INFO));
 		GetConsoleScreenBufferInfo(output, &screen);
 		return screen;
 	}
-	Region Console::getScreenRegion()
+	Region console::getScreenRegion()
 	{
+		CONSOLE_SCREEN_BUFFER_INFO screen = getScreenInfo();
 		return Region({ 0, 0 }, Point(screen.dwSize.X, screen.dwSize.Y));
 	}
 	
-	Pixel Console::getPixel(Point pos)
+	Pixel console::getPixel(Point pos)
 	{
 		CHAR_INFO ci;
 		SMALL_RECT rect = { 0,0,0,0 };
@@ -78,7 +80,7 @@
 		return Pixel(ci.Char.UnicodeChar, pos, ci.Attributes);
 #endif
 	}
-	void Console::getPixels(Region region, Pixel* buffer, int bufferLen)
+	void console::getPixels(Region region, Pixel* buffer, int bufferLen)
 	{
 		int i = 0;
 		int width = region.getWidth();
@@ -92,11 +94,11 @@
 		}
 	}
 
-	void Console::drawPixel(CHAR character, Point pos, Brush color)
+	void console::drawPixel(CHAR character, Point pos, Brush color)
 	{
 		drawPixel(Pixel(character, pos, color));
 	}
-	void Console::drawPixel(Pixel pixel)
+	void console::drawPixel(Pixel pixel)
 	{
 		if (!FAST_DRAW || getPixel(pixel.pos) != pixel)
 		{
@@ -107,7 +109,7 @@
 		}
 	}
 
-	void Console::drawRegion(Region r, BrushEx brush)
+	void console::drawRegion(Region r, BrushEx brush)
 	{
 		Point* buffer = (Point*)malloc(sizeof(Point) * r.getArea());
 		r.getPoints(buffer, r.getArea());
@@ -115,7 +117,7 @@
 			drawPixel(brush.character, buffer[i], brush.brush);
 		free(buffer);
 	}
-	void Console::drawRegion(Region r, Brush color)
+	void console::drawRegion(Region r, Brush color)
 	{
 		Point* buffer = (Point*)malloc(sizeof(Point) * r.getArea());
 		r.getPoints(buffer, r.getArea());
@@ -124,7 +126,7 @@
 		free(buffer);
 	}
 
-	void Console::drawTexture(Texture t, Point pos)
+	void console::drawTexture(Texture t, Point pos)
 	{
 		BrushEx  tempBrush;
 		for (size_t y = 0; y < t.height; y++)
@@ -137,44 +139,44 @@
 		}
 	}
 
-	void Console::setAttribute(Point pos, Brush color, int length)
+	void console::setAttribute(Point pos, Brush color, int length)
 	{
 		Point prevPos = getCursorPos();
 		SetConsoleCursorPosition(output, pos.toCoord());
 		FillConsoleOutputAttribute(output, color, length, pos.toCoord(), &status);
 		setCursorPos(prevPos);
 	}
-	void Console::setAttribute(Brush color, int length)
+	void console::setAttribute(Brush color, int length)
 	{
 		setAttribute(getCursorPos(), color, length);
 	}
-	void Console::setTextAttribute(Brush color)
+	void console::setTextAttribute(Brush color)
 	{
-		textAttribute = color;
+		_textAttribute = color;
 		SetConsoleTextAttribute(output, color);
 	}
-	void Console::setCharacter(Point pos, CHAR character, int length)
+	void console::setCharacter(Point pos, CHAR character, int length)
 	{
 		Point prevPos = getCursorPos();
 		SetConsoleCursorPosition(output, pos.toCoord());
 		FillConsoleOutputCharacter(output, character, length, pos.toCoord(), &status);
 		setCursorPos(prevPos);
 	}
-	void Console::setCharacter(CHAR character, int length)
+	void console::setCharacter(CHAR character, int length)
 	{
 		setCharacter(getCursorPos(), character, length);
 	}
 
-	Console Console::operator >> (STR str)
+	/*Console console::operator >> (STR str)
 	{
 		print(str);
 		return *this;
-	}
-	void Console::print(STR string)
+	}*/
+	void console::print(STR string)
 	{
 		print(string, getCursorPos());
 	}
-	void Console::printInRegion(STR string, Point relative, bool vertical, Region textBox, Vector stepOffset)
+	void console::printInRegion(STR string, Point relative, bool vertical, Region textBox, Vector stepOffset)
 	{
 		Point pos;
 		pos.x = relative.x + textBox.leftTop.x;
@@ -183,7 +185,7 @@
 		for (i = 0; i < LEN(string); i++)
 		{
 			setCharacter(pos, string[i]);
-			setAttribute(pos, textAttribute);
+			setAttribute(pos, _textAttribute);
 			if (pos.x <= textBox.rightBottom.x && (!vertical || pos.y <= textBox.rightBottom.y))
 			{
 				pos.x += (!vertical) + stepOffset.x;
@@ -206,13 +208,13 @@
 			setCursorPos(pos);
 	}
 
-	void Console::print(STR string, Point pos, bool vertical, Vector stepOffset)
+	void console::print(STR string, Point pos, bool vertical, Vector stepOffset)
 	{
-		size_t i;
-		for (i = 0; i < LEN(string); i++)
+		CONSOLE_SCREEN_BUFFER_INFO screen = getScreenInfo();
+		for (size_t i = 0; i < LEN(string); i++)
 		{
 			setCharacter(pos, string[i]);
-			setAttribute(pos, textAttribute);
+			setAttribute(pos, _textAttribute);
 			if (pos.x <= (size_t)screen.dwSize.X && (!vertical || pos.y <= (size_t)screen.dwSize.Y))
 			{
 				if (!vertical) pos.x += 1 + stepOffset.x; else pos.y += 1 + stepOffset.y;
@@ -235,12 +237,12 @@
 			setCursorPos(pos);
 	}
 
-	Console Console::operator<<(STR str)
+	/*Console console::operator<<(STR str)
 	{
 		insert(str);
 		return *this;
-	}
-	void Console::insert(STR string)
+	}*/
+	void console::insert(STR string)
 	{
 		size_t i;
 		DWORD tmp;
@@ -253,7 +255,7 @@
 		free(records);
 	}
 
-	INPUT_RECORD Console::charAsInput(CHAR chr)
+	INPUT_RECORD console::charAsInput(CHAR chr)
 	{
 		INPUT_RECORD ir;
 		ir.EventType = KEY_EVENT;
@@ -263,33 +265,35 @@
 		return ir;
 	}
 	
-	void Console::setFontSize(Point size, bool maximized)
+	void console::setFontSize(Point size, bool maximized)
 	{
+		CONSOLE_FONT_INFOEX font = getFont();
 		font.dwFontSize.X = size.x;
 		font.dwFontSize.Y = size.y;
 		SetCurrentConsoleFontEx(output, maximized, &font);
 	}
-	Point Console::getSize(bool maximized)
+	Point console::getSize(bool maximized)
 	{
 		CONSOLE_SCREEN_BUFFER_INFO sb;
 		GetConsoleScreenBufferInfo(output, &sb);
 		if (maximized) return sb.dwMaximumWindowSize;
 		return sb.dwSize;
 	}
-	Point Console::getCursorPos()
+	Point console::getCursorPos()
 	{
 		CONSOLE_SCREEN_BUFFER_INFO sb;
 		GetConsoleScreenBufferInfo(output, &sb);
 		return sb.dwCursorPosition;
 	}
-	void Console::setCursorPos(Point pos)
+	void console::setCursorPos(Point pos)
 	{
 		SetConsoleCursorPosition(output, pos.toCoord());
 	}
-	Point Console::getCursorPoint()
+	Point console::getCursorPoint()
 	{
 		GetCursorPos(&cursorPos);
 		ScreenToClient(consoleWindow, &cursorPos);
+		CONSOLE_FONT_INFOEX font = getFont();
 		return Point(cursorPos.x / font.dwFontSize.X, cursorPos.y / font.dwFontSize.Y);
 	}
 #endif
@@ -663,10 +667,6 @@
 	{
 		valid = flag;
 	}
-	Graphics::Graphics(Console _console)
-	{
-		console = _console;
-	}
 
 	void Graphics::DrawLine(Point p1, Point p2, BrushEx brush)
 	{
@@ -677,10 +677,10 @@
 		for (size_t i = 0; i <= abs((int)p2.x - (int)p1.x); i++)
 		{
 			Point pos = Point(start.x + i, slope * i + start.y);
-			console.drawPixel(brush.character, pos, brush.brush);
+			console::drawPixel(brush.character, pos, brush.brush);
 			for (size_t j = 0; j < (pos.y - prevHeight); j++)
 			{
-				console.drawPixel(brush.character, Point(pos.x, pos.y - j), brush.brush);
+				console::drawPixel(brush.character, Point(pos.x, pos.y - j), brush.brush);
 			}
 			prevHeight = pos.y;
 		}
@@ -689,7 +689,7 @@
 			for (size_t j = 0; j <= abs((int)p2.y - (int)p1.y); j++)
 			{
 				Point pos = Point(start.x, start.y + j);
-				console.drawPixel(brush.character, pos, brush.brush);
+				console::drawPixel(brush.character, pos, brush.brush);
 			}
 		}
 	}
