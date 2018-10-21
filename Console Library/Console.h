@@ -298,65 +298,69 @@ namespace TypeFace
 	}
 }
 
-class Console
+static class Console
 {
 private:
-	bool initated;
-	HWND consoleWindow;
-	HANDLE input, output;
-	POINT cursorPos;
-	DWORD cWritten, status;
-	Brush textAttribute;
+	static HWND consoleWindow;
+	static HANDLE input;
+	static HANDLE output;
+	static POINT cursorPos;
+	static DWORD cWritten, status;
+	static Brush textAttribute;
+	static CONSOLE_FONT_INFOEX font;
+	static CONSOLE_SCREEN_BUFFER_INFO screen;
 public:
-	CONSOLE_FONT_INFOEX font;
-	CONSOLE_SCREEN_BUFFER_INFO screen;
-	union {
-		bool ADVANCE_CURSOR;
+	static union {
+		bool ADVANCE_CURSOR = true;
 	} flags;
-	int initConsole();
+	static int initConsole();
 
-	int error(bool condition, STR title, STR content, bool exitProgram = true);
+	static int error(bool condition, STR title, STR content, bool exitProgram = true);
 
-	void clear(Point from);
-	void clear();
+	static void clear(Point from);
+	static void clear();
+	static void maximize();
+	static void allowInput(bool flag);
 
-	Region getScreenRegion();
+	static Region getScreenRegion();
+	static CONSOLE_SCREEN_BUFFER_INFO getScreenInfo();
+	static CONSOLE_FONT_INFOEX getFont();
 
-	Pixel getPixel(Point pos);
-	void getPixels(Region region, Pixel* buffer, int bufferLen);
+	static Pixel getPixel(Point pos);
+	static void getPixels(Region region, Pixel* buffer, int bufferLen);
 
-	void drawPixel(CHAR character, Point pos, Brush color);
-	void drawPixel(Pixel pixel);
+	static void drawPixel(CHAR character, Point pos, Brush color);
+	static void drawPixel(Pixel pixel);
 
-	void drawRegion(Region r, BrushEx brush);
-	void drawRegion(Region r, Brush color);
+	static void drawRegion(Region r, BrushEx brush);
+	static void drawRegion(Region r, Brush color);
 	
-	void drawTexture(Texture t, Point pos);
+	static void drawTexture(Texture t, Point pos);
 
-	void setAttribute(Point pos, Brush color = BACKGROUND_WHITE, int length = 1);
-	void setAttribute(Brush color = BACKGROUND_WHITE, int length = 1);
-	void setTextAttribute(Brush color);
+	static void setAttribute(Point pos, Brush color = BACKGROUND_WHITE, int length = 1);
+	static void setAttribute(Brush color = BACKGROUND_WHITE, int length = 1);
+	static void setTextAttribute(Brush color);
 
-	void setCharacter(Point pos, CHAR character = SPACE, int length = 1);
-	void setCharacter(CHAR character = SPACE, int length = 1);
+	static void setCharacter(Point pos, CHAR character = SPACE, int length = 1);
+	static void setCharacter(CHAR character = SPACE, int length = 1);
 
 	Console operator>>(STR str);
-	void printInRegion(STR string, Point relative, bool vertical, Region textBox, Vector stepOffset = { 0, 0 });
-	void print(STR string, Point pos, bool vertical = false, Vector stepOffset = {0, 0});
-	void print(STR string);
+	static void printInRegion(STR string, Point relative, bool vertical, Region textBox, Vector stepOffset = { 0, 0 });
+	static void print(STR string, Point pos, bool vertical = false, Vector stepOffset = {0, 0});
+	static void print(STR string);
 	
 	Console operator<<(STR str);
-	void insert(STR string);
+	static void insert(STR string);
 
-	void setFontSize(Point size, bool maximized);
-	Point getSize(bool maximized);
-	void setCursorPos(Point pos);
-	Point getCursorPos();
-	Point getCursorPoint();
+	static void setFontSize(Point size, bool maximized);
+	static Point getSize(bool maximized);
+	static void setCursorPos(Point pos);
+	static Point getCursorPos();
+	static Point getCursorPoint();
 
-	INPUT_RECORD charAsInput(CHAR chr);
+	static INPUT_RECORD charAsInput(CHAR chr);
 
-	Console() { initConsole(); }
+	Console() { }
 };
 
 class Graphics

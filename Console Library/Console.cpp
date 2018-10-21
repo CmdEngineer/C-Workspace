@@ -2,26 +2,14 @@
 
 /// CONSOLE CLASS:
 #ifdef TRUE
-	int Console::initConsole()
-	{
-		ZeroMemory(&screen, sizeof(CONSOLE_SCREEN_BUFFER_INFOEX));
-		//ZeroMemory(&font, sizeof(CONSOLE_FONT_INFOEX));
-		input = GetStdHandle(STD_INPUT_HANDLE);
-		output = GetStdHandle(STD_OUTPUT_HANDLE);
-		consoleWindow = GetConsoleWindow();
-		//SetConsoleMode(input, ~ENABLE_ECHO_INPUT);
-		GetConsoleScreenBufferInfo(output, &screen);
-		font.cbSize = sizeof(font);
-		GetCurrentConsoleFontEx(GetStdHandle(STD_OUTPUT_HANDLE), false, &font);
-
-		textAttribute = DEFAULT_BRUSH;
-		// Set Flags:
-		flags.ADVANCE_CURSOR = true;
-		// End initalization
-		initated = true;
-		ShowWindow(consoleWindow, SW_MAXIMIZE);
-		return true;
-	}
+	HWND Console::consoleWindow = GetConsoleWindow();
+	HANDLE Console::input = GetStdHandle(STD_INPUT_HANDLE);
+	HANDLE Console::output = GetStdHandle(STD_OUTPUT_HANDLE);
+	POINT Console::cursorPos;
+	DWORD ConsolecWritten, Console::status;
+	Brush Console::textAttribute = DEFAULT_BRUSH;
+	CONSOLE_FONT_INFOEX Console::font = getFont();
+	CONSOLE_SCREEN_BUFFER_INFO Console::screen = getScreenInfo();
 
 	int Console::error(bool condition, STR title, STR content, bool exitProgram)
 	{
@@ -37,7 +25,6 @@
 		else return CODE_OK;
 	}
 
-
 	void Console::clear(Point from)
 	{
 		setCharacter(from, SPACE, screen.dwSize.X * screen.dwSize.Y);
@@ -50,12 +37,36 @@
 		setCharacter(SPACE, screen.dwSize.X * screen.dwSize.Y);
 		setAttribute(BACKGROUND_DEFAULT, screen.dwSize.X * screen.dwSize.Y);
 	}
+	void Console::maximize()
+	{
+		ShowWindow(consoleWindow, SW_MAXIMIZE);
+	}
+	void Console::allowInput(bool flag)
+	{
+		if (flag)
+		{
+			SetConsoleMode(input, ENABLE_ECHO_INPUT);
+		} else SetConsoleMode(input, ~ENABLE_ECHO_INPUT);
+	}
+	CONSOLE_FONT_INFOEX Console::getFont()
+	{
+		ZeroMemory(&font, sizeof(CONSOLE_FONT_INFOEX));
+		GetCurrentConsoleFontEx(GetStdHandle(STD_OUTPUT_HANDLE), false, &font);
+		font.cbSize = sizeof(font);
+		return font;
+	}
 
+	CONSOLE_SCREEN_BUFFER_INFO Console::getScreenInfo()
+	{
+		ZeroMemory(&screen, sizeof(CONSOLE_SCREEN_BUFFER_INFO));
+		GetConsoleScreenBufferInfo(output, &screen);
+		return screen;
+	}
 	Region Console::getScreenRegion()
 	{
 		return Region({ 0, 0 }, Point(screen.dwSize.X, screen.dwSize.Y));
 	}
-
+	
 	Pixel Console::getPixel(Point pos)
 	{
 		CHAR_INFO ci;
