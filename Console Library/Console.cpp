@@ -1,13 +1,13 @@
 #include "Console.h"
 
-/// CONSOLE CLASS:
+/// CONSOLE NAMESPACE:
 #ifdef TRUE
 	extern HWND consoleWindow;
 	extern HANDLE input;
 	extern HANDLE output;
 	extern POINT cursorPos;
 	extern DWORD cWritten, status;
-	extern Brush __textAttributee;
+	extern Brush _textAttribute;
 	int console::error(bool condition, STR title, STR content, bool exitProgram)
 	{
 		if (condition)
@@ -47,7 +47,8 @@
 			SetConsoleMode(input, ENABLE_ECHO_INPUT);
 		} else SetConsoleMode(input, ~ENABLE_ECHO_INPUT);
 	}
-	
+	HANDLE console::getInput() { return input; };
+	HANDLE console::getOutput() { return output; };
 	CONSOLE_FONT_INFOEX console::getFont()
 	{
 		CONSOLE_FONT_INFOEX font;
@@ -75,9 +76,9 @@
 		SMALL_RECT rect = { 0,0,0,0 };
 		ReadConsoleOutput(output, &ci, { 1,1 }, pos.toCoord(), &rect);
 #ifndef UNICODE
-		return Pixel(ci.Char.AsciiChar, pos, ci.Attributes);
+		return Pixel(pos, ci.Char.AsciiChar, ci.Attributes);
 #else
-		return Pixel(ci.Char.UnicodeChar, pos, ci.Attributes);
+		return Pixel(pos, ci.Char.UnicodeChar, ci.Attributes);
 #endif
 	}
 	void console::getPixels(Region region, Pixel* buffer, int bufferLen)
@@ -96,7 +97,7 @@
 
 	void console::drawPixel(CHAR character, Point pos, Brush color)
 	{
-		drawPixel(Pixel(character, pos, color));
+		drawPixel(Pixel(pos, character, color));
 	}
 	void console::drawPixel(Pixel pixel)
 	{
@@ -128,13 +129,16 @@
 
 	void console::drawTexture(Texture t, Point pos)
 	{
-		BrushEx  tempBrush;
+		BrushEx tempBrush;
 		for (size_t y = 0; y < t.height; y++)
 		{
 			for (size_t x = 0; x < t.width; x++)
 			{
 				tempBrush = t.At({ x, y });
-				drawPixel(tempBrush.character, pos + Point(x, y), tempBrush.brush);
+				if (tempBrush.isValid())
+				{
+					drawPixel(tempBrush.character, pos + Point(x, y), tempBrush.brush);
+				}
 			}
 		}
 	}
@@ -207,7 +211,6 @@
 		if (flags.ADVANCE_CURSOR)
 			setCursorPos(pos);
 	}
-
 	void console::print(STR string, Point pos, bool vertical, Vector stepOffset)
 	{
 		CONSOLE_SCREEN_BUFFER_INFO screen = getScreenInfo();
@@ -236,7 +239,7 @@
 		if (flags.ADVANCE_CURSOR)
 			setCursorPos(pos);
 	}
-
+	//void console::printFont(STR string, Point pos, size_t width, size_t height);
 	/*Console console::operator<<(STR str)
 	{
 		insert(str);
@@ -272,6 +275,12 @@
 		font.dwFontSize.Y = size.y;
 		SetCurrentConsoleFontEx(output, maximized, &font);
 	}
+	void console::setFont(WSTR fontName, bool maximized)
+	{
+		CONSOLE_FONT_INFOEX font = getFont();
+		wcscpy_s(font.FaceName, fontName);
+		SetCurrentConsoleFontEx(output, maximized, &font);
+	}
 	Point console::getSize(bool maximized)
 	{
 		CONSOLE_SCREEN_BUFFER_INFO sb;
@@ -294,8 +303,117 @@
 		GetCursorPos(&cursorPos);
 		ScreenToClient(consoleWindow, &cursorPos);
 		CONSOLE_FONT_INFOEX font = getFont();
+		setCursorPos({ 0, 0 });
+		//printf("%d / %d, %d / %d => %d, %d                      ", cursorPos.x, font.dwFontSize.X, cursorPos.y, font.dwFontSize.Y, Point(cursorPos.x / font.dwFontSize.X, cursorPos.y / font.dwFontSize.Y).x, Point(cursorPos.x / font.dwFontSize.X, cursorPos.y / font.dwFontSize.Y).y);
 		return Point(cursorPos.x / font.dwFontSize.X, cursorPos.y / font.dwFontSize.Y);
 	}
+#endif
+/// EVENTS NAMESPACE:
+#ifdef TRUE
+	/*
+	Example usage:
+	class MyEventHandler : public EventHandler
+	{
+	public:
+		void onKeyEvent(KEY_EVENT_RECORD e)
+		{
+			printf("Keyboard thing\n");
+		}
+
+		void onMouseEvent(MOUSE_EVENT_RECORD e)
+		{
+			printf("Mouse thing \n");
+		}
+	};
+
+	int main(void)
+	{
+		MyEventHandler mr = MyEventHandler();
+		// do whatever...
+		return 0;
+	}
+	*/
+
+	extern DWORD eventsRead;
+	extern INPUT_RECORD eventsBuffer[128];
+
+	void events::getEvents()
+	{
+		DWORD fdwSaveOldMode; DWORD fdwMode;
+		HANDLE input = console::getInput();
+		GetConsoleMode(input, &fdwSaveOldMode);
+		fdwMode = ENABLE_EXTENDED_FLAGS | ENABLE_WINDOW_INPUT | ENABLE_MOUSE_INPUT;
+		SetConsoleMode(input, fdwMode);
+		while (true)
+		{
+			// Wait for the events. 
+
+			ReadConsoleInput(input, eventsBuffer, 128, &eventsRead);
+
+			// Dispatch the events to the appropriate handler. 
+
+			for (size_t i = 0; i < eventsRead; i++)
+			{
+				for (i = 0; i < eventsRead; i++)
+				{
+					switch (eventsBuffer[i].EventType)
+					{
+					case KEY_EVENT: // keyboard input 
+						__raise (*Event::getInstance()).KeyEvent(eventsBuffer[i].Event.KeyEvent);
+						break;
+
+					case MOUSE_EVENT: // mouse input 
+						__raise (*Event::getInstance()).MouseEvent(eventsBuffer[i].Event.MouseEvent);
+						break;
+
+					case WINDOW_BUFFER_SIZE_EVENT: // scrn buf. resizing 
+						break;
+
+					case FOCUS_EVENT:  // disregard focus events 
+
+					case MENU_EVENT:   // disregard menu events 
+						break;
+
+					default:
+						printf("Unknown event type");
+						break;
+					}
+				}
+			}
+		}
+		SetConsoleMode(input, fdwSaveOldMode);
+	}
+	events::Event* events::Event::instance = 0;
+	events::Event* events::Event::getInstance()
+	{
+		if (!instance)
+		{
+			instance = new Event();
+		}
+		return instance;
+	}
+
+	void events::EventHandler::onKeyEvent(KEY_EVENT_RECORD e)
+	{
+		printf("Default keyPress\n");
+	}
+	void events::EventHandler::onMouseEvent(MOUSE_EVENT_RECORD e)
+	{
+		printf("Default mosuePress\n");
+	}
+	events::EventHandler::EventHandler()
+	{
+		std::future<void> result(std::async(getEvents));
+		__hook(&Event::KeyEvent, Event::getInstance(), &EventHandler::onKeyEvent);
+		__hook(&Event::MouseEvent, Event::getInstance(), &EventHandler::onMouseEvent);
+		thread = result.share();
+	}
+	events::EventHandler::~EventHandler()
+	{
+		__unhook(&Event::KeyEvent, Event::getInstance(), &EventHandler::onKeyEvent);
+		__unhook(&Event::MouseEvent, Event::getInstance(), &EventHandler::onMouseEvent);
+		thread.get();
+	};
 #endif
 /// REGION CLASS:
 #ifdef TRUE
@@ -358,9 +476,9 @@
 #ifdef TRUE
 	Pixel::Pixel()
 	{
-		chr = DEFAULT_PIXEL.chr;
-		pos = DEFAULT_PIXEL.pos;
-		color = DEFAULT_PIXEL.color;
+		chr = DEFAULT_CHARACTER;
+		pos = console::getCursorPoint();
+		color = DEFAULT_BRUSH;
 	}
 	Pixel::Pixel(bool flag)
 	{
@@ -369,28 +487,33 @@
 	Pixel::Pixel(CHAR _character)
 	{
 		chr = _character;
-		pos = DEFAULT_PIXEL.pos;
-		color = DEFAULT_PIXEL.color;
+		pos = console::getCursorPoint();
+		color = DEFAULT_BRUSH;
 	}
 	Pixel::Pixel(Point _pos)
 	{
-		chr = DEFAULT_PIXEL.chr;
+		chr = DEFAULT_CHARACTER;
 		pos = _pos;
-		color = DEFAULT_PIXEL.color;
+		color = DEFAULT_BRUSH;
 	}
-	Pixel::Pixel(CHAR _character, Point _pos)
+	Pixel::Pixel(Point _pos, CHAR _character)
 	{
 		chr = _character;
 		pos = _pos;
-		color = DEFAULT_PIXEL.color;
+		color = DEFAULT_BRUSH;
 	}
-	Pixel::Pixel(CHAR _character, Point _pos, Brush _color)
+	Pixel::Pixel(Point _pos, CHAR _character, Brush _color)
 	{
 		chr = _character;
 		pos = _pos;
 		color = _color;
 	}
-
+	Pixel::Pixel(Point _pos, BrushEx brush)
+	{
+		chr = brush.character;
+		pos = _pos;
+		color = brush.brush;
+	}
 	bool Pixel::operator==(Pixel other)
 	{
 		return (chr == other.chr && pos == other.pos && color == other.color);
@@ -519,7 +642,7 @@
 		data = (BrushEx*)malloc(sizeof(BrushEx) * _size);
 		for (size_t i = 0; i < _size; i++)
 		{
-			data[i] = DEFAULT_BRUSH_EX;
+			data[i] = BrushEx(BACKGROUND_WHITE, false);
 		}
 	}
 	void Palette::Destroy()

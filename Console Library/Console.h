@@ -18,6 +18,7 @@ Notes:
 */
 #include <Windows.h>
 #include <stdio.h>
+#include <future>
 #include <stdlib.h>
 #include <cmath>
 
@@ -31,11 +32,13 @@ Notes:
 // Some computers run Windows.h based on unicode not ascii, I made it so my program runs both. use TEXT(quote) to make sure your text translates correctly.
 #ifndef UNICODE
 	#define STR LPCSTR
+	#define WSTR LPCWSTR
 	#define CHAR CHAR
 	#define LEN(str) strlen(str)
 	#define SPACE ' '
 #else
 	#define STR LPCWSTR
+	#define WSTR STR
 	#define CHAR WCHAR
 	#define LEN(str) wcslen(str)
 	#define SPACE L' '
@@ -46,15 +49,22 @@ Notes:
 #define BACKGROUND_DEFAULT 0
 #define FOREGROUND_WHITE FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE
 #define FOREGROUND_DEFAULT FOREGROUND_WHITE
+#define DEFAULT_CHARACTER SPACE
 #define DEFAULT_BRUSH BACKGROUND_DEFAULT | FOREGROUND_DEFAULT
 #define DEFAULT_BRUSH_EX BrushEx(BACKGROUND_DEFAULT | FOREGROUND_DEFAULT, SPACE)
 #define DEFAULT_PALETTE_SIZE 1
 #define DEFAULT_TEXTURE_WIDTH 16
 #define DEFAULT_TEXTURE_HEIGHT 16
-#define DEFAULT_PIXEL Pixel(SPACE, {0, 0}, BACKGROUND_DEFAULT | FOREGROUND_DEFAULT)
 #define INVALID_PIXEL Pixel(false);
 #define INVALID_POINT Point(false);
 #define INVALID_REGION Region(false);
+
+// Event Handles:
+#define HOOK __hook
+#define UNHOOK __unhook
+#define EVENT __event
+#define RAISE __raise
+
 
 #define POSITIVE 1
 #define EQUAL 0
@@ -66,11 +76,15 @@ class BrushEx {
 public:
 	Brush brush;
 	CHAR character;
-	BrushEx() { brush = DEFAULT_BRUSH; character = SPACE; };
-	BrushEx(Brush _brush) { brush = _brush; character = SPACE; };
-	BrushEx(Brush _brush, CHAR _character) { brush = _brush; character = _character; };
+	BrushEx() { brush = DEFAULT_BRUSH; character = SPACE; valid = true; };
+	BrushEx(Brush _brush) { brush = _brush; character = SPACE; valid = true; };
+	BrushEx(Brush _brush, bool flag) : BrushEx() { valid = flag; };
+	BrushEx(Brush _brush, CHAR _character) { brush = _brush; character = _character; valid = true; };
 	bool operator==(BrushEx other) { return (brush == other.brush && character == other.character); };
 	bool operator!=(BrushEx other) { return !(*this == other); };
+	bool isValid() { return valid; }
+private:
+	bool valid;
 };
 
 class Vector
@@ -118,8 +132,9 @@ public:
 	Pixel(bool flag);
 	Pixel(CHAR _character);
 	Pixel(Point _pos);
-	Pixel(CHAR _character, Point _pos);
-	Pixel(CHAR _character, Point _pos, Brush _color);
+	Pixel(Point _pos, CHAR _character);
+	Pixel(Point _pos, CHAR _character, Brush _color);
+	Pixel(Point _pos, BrushEx brush);
 
 	bool operator==(Pixel other);
 	bool operator!=(Pixel other);
@@ -268,32 +283,48 @@ namespace TypeFace
 		};
 	}
 	namespace size5x5 {
+		static int space_bar[25] = { 0 };
+		static int underscore[25] = { 0, 0, 0, 0, 0,  0, 0, 0, 0, 0,  0, 0, 0, 0, 0,  0, 0, 0, 0, 0,  1, 1, 1, 1, 1 };
+		static int number[10][25] =
+		{
+			{ 1, 1, 1, 1, 1,  1, 0, 0, 1, 1,  1, 0, 1, 0, 1,  1, 1, 0, 0, 1,  1, 1, 1, 1, 1 },
+			{ 0, 0, 1, 0, 0,  0, 1, 1, 0, 0,  0, 0, 1, 0, 0,  0, 0, 1, 0, 0,  1, 1, 1, 1, 1 },
+			{ 1, 1, 1, 1, 0,  0, 0, 0, 0, 1,  0, 1, 1, 1, 1,  1, 0, 0, 0, 0,  1, 1, 1, 1, 1 },
+			{ 1, 1, 1, 1, 1,  0, 0, 0, 0, 1,  0, 1, 1, 1, 0,  0, 0, 0, 0, 1,  1, 1, 1, 1, 1 },
+			{ 0, 0, 0, 1, 0,  0, 0, 1, 1, 0,  0, 1, 0, 1, 0,  1, 1, 1, 1, 1,  0, 0, 0, 1, 0 },
+			{ 1, 1, 1, 1, 1,  1, 0, 0, 0, 0,  1, 1, 1, 1, 0,  0, 0, 0, 0, 1,  1, 1, 1, 1, 0 },
+			{ 1, 1, 1, 1, 1,  1, 0, 0, 0, 0,  1, 1, 1, 1, 0,  1, 0, 0, 0, 1,  1, 1, 1, 1, 1 },
+			{ 1, 1, 1, 1, 1,  0, 0, 0, 0, 1,  0, 0, 0, 1, 0,  0, 0, 1, 0, 0,  0, 0, 1, 0, 0 },
+			{ 1, 1, 1, 1, 1,  1, 0, 0, 0, 1,  1, 1, 1, 1, 1,  1, 0, 0, 0, 1,  1, 1, 1, 1, 1 },
+			{ 1, 1, 1, 1, 1,  1, 0, 0, 0, 1,  1, 1, 1, 1, 1,  0, 0, 0, 0, 1,  1, 1, 1, 1, 1 }
+		};
 		static int character[26][25] = {
-			{ 1, 1, 1, 1, 1, 1, 0, 0, 0, 1, 1, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 1 },
-			{ 1, 1, 1, 1, 1, 1, 0, 0, 0, 1, 1, 1, 1, 1, 0, 1, 0, 0, 0, 1, 1, 1, 1, 1, 1 },
-			{ 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 1, 1, 1, 1 },
-			{ 1, 1, 1, 1, 0, 1, 0, 0, 0, 1, 1, 0, 0, 0, 1, 1, 0, 0, 0, 1, 1, 1, 1, 1, 0 },
-			{ 1, 1, 1, 1, 0, 1, 0, 0, 0, 0, 1, 1, 1, 1, 0, 1, 0, 0, 0, 0, 1, 1, 1, 1, 0 },
-			{ 1, 1, 1, 0, 1, 0, 0, 0, 0, 1, 1, 1, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1 },
-			{ 1, 1, 0, 1, 0, 0, 0, 0, 1, 0, 1, 1, 0, 1, 1, 0, 1, 0, 1, 0, 1, 1, 0, 1, 0 },
-			{ 0, 1, 0, 1, 1, 0, 1, 0, 0, 0, 1, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 1, 1 },
-			{ 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 1, 0, 1, 1 },
-			{ 1, 1, 0, 1, 0, 0, 1, 0, 1, 0, 0, 1, 0, 1, 1, 0, 1, 0, 1, 0, 1, 1, 0, 1, 0 },
-			{ 0, 1, 0, 1, 0, 1, 0, 0, 1, 0, 0, 0, 0, 1, 0, 1, 0, 0, 1, 0, 0, 1, 0, 1, 1 },
-			{ 0, 0, 0, 1, 0, 0, 0, 0, 1, 1, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 1, 1, 0, 1, 0 },
-			{ 0, 1, 0, 1, 0, 1, 1, 0, 1, 1, 0, 1, 0, 1, 0, 0, 1, 0, 1, 0, 0, 1, 0, 1, 0 },
-			{ 0, 1, 0, 0, 1, 0, 1, 0, 1, 0, 0, 1, 0, 1, 0, 1, 1, 0, 1, 0, 0, 1, 0, 0, 1 },
-			{ 1, 0, 0, 1, 1, 0, 1, 0, 1, 0, 0, 1, 0, 1, 1, 0, 1, 0, 1, 0, 1, 0, 0, 1, 0 },
-			{ 1, 0, 0, 1, 1, 0, 1, 0, 1, 0, 1, 0, 0, 1, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0 },
-			{ 1, 1, 0, 1, 1, 0, 1, 0, 1, 0, 0, 1, 0, 1, 1, 1, 1, 0, 1, 0, 0, 0, 0, 1, 0 },
-			{ 0, 0, 1, 1, 1, 1, 0, 1, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 1, 0, 1, 1, 1 },
-			{ 0, 1, 1, 1, 1, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0 },
-			{ 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 1, 1, 1 },
-			{ 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 1, 0, 1, 0, 0, 0, 1, 0 },
-			{ 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 1, 0, 0, 1, 0, 1, 0, 0, 0, 1, 0, 1 },
-			{ 0, 1, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0, 1, 0, 0, 0 },
-			{ 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0 },
-			{ 0, 1, 1, 1, 1, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 1, 1, 1 }
+			{ 1, 1, 1, 1, 1,  1, 0, 0, 0, 1,  1, 0, 0, 0, 1,  1, 1, 1, 1, 1,  1, 0, 0, 0, 1 }, // A
+			{ 1, 1, 1, 1, 1,  1, 0, 0, 0, 1,  1, 1, 1, 1, 0,  1, 0, 0, 0, 1,  1, 1, 1, 1, 1 }, // B
+			{ 1, 1, 1, 1, 1,  1, 0, 0, 0, 0,  1, 0, 0, 0, 0,  1, 0, 0, 0, 0,  1, 1, 1, 1, 1 }, // C
+			{ 1, 1, 1, 1, 0,  1, 0, 0, 0, 1,  1, 0, 0, 0, 1,  1, 0, 0, 0, 1,  1, 1, 1, 1, 0 }, // D
+			{ 1, 1, 1, 1, 0,  1, 0, 0, 0, 0,  1, 1, 1, 1, 0,  1, 0, 0, 0, 0,  1, 1, 1, 1, 0 }, // E
+			{ 1, 1, 1, 1, 1,  1, 0, 0, 0, 0,  1, 1, 1, 1, 0,  1, 0, 0, 0, 0,  1, 0, 0, 0, 0 }, // F
+			{ 1, 1, 1, 1, 0,  1, 0, 0, 0, 0,  1, 0, 1, 1, 0,  1, 0, 0, 1, 0,  1, 1, 1, 1, 0 }, // G
+			{ 1, 0, 0, 0, 1,  1, 0, 0, 0, 1,  1, 1, 1, 1, 1,  1, 0, 0, 0, 1,  1, 0, 0, 0, 1 }, // H
+			{ 1, 1, 1, 1, 1,  0, 0, 1, 0, 0,  0, 0, 1, 0, 0,  0, 0, 1, 0, 0,  1, 1, 1, 1, 1 }, // I
+			{ 0, 0, 1, 1, 1,  0, 0, 0, 0, 1,  0, 0, 0, 0, 1,  1, 0, 0, 0, 1,  1, 1, 1, 1, 1 }, // J
+			{ 1, 0, 0, 0, 1,  1, 0, 0, 1, 0,  1, 1, 1, 0, 0,  1, 0, 0, 1, 0,  1, 0, 0, 0, 1 }, // K
+			{ 1, 0, 0, 0, 0,  1, 0, 0, 0, 0,  1, 0, 0, 0, 0,  1, 0, 0, 0, 0,  1, 1, 1, 1, 1 }, // L
+			{ 1, 0, 0, 0, 1,  1, 1, 0, 1, 1,  1, 0, 1, 0, 1,  1, 0, 0, 0, 1,  1, 0, 0, 0, 1 }, // M
+			{ 1, 0, 0, 0, 1,  1, 1, 0, 0, 1,  1, 0, 1, 0, 1,  1, 0, 0, 1, 1,  1, 0, 0, 0, 1 }, // N
+			{ 0, 1, 1, 1, 0,  1, 0, 0, 0, 1,  1, 0, 0, 0, 1,  1, 0, 0, 0, 1,  0, 1, 1, 1, 0 }, // O
+			{ 1, 1, 1, 1, 0,  1, 0, 0, 0, 1,  1, 1, 1, 1, 0,  1, 0, 0, 0, 0,  1, 0, 0, 0, 0 }, // P
+			{ 1, 1, 1, 1, 1,  1, 0, 0, 0, 1,  1, 0, 0, 0, 1,  1, 1, 1, 1, 1,  0, 0, 1, 0, 0 }, // Q
+			{ 1, 1, 1, 1, 0,  1, 0, 0, 0, 1,  1, 1, 1, 1, 0,  1, 0, 0, 0, 1,  1, 0, 0, 0, 1 }, // R
+			{ 0, 1, 1, 1, 1,  1, 0, 0, 0, 0,  0, 1, 1, 1, 0,  0, 0, 0, 0, 1,  1, 1, 1, 1, 0 }, // S
+			{ 1, 1, 1, 1, 1,  0, 0, 1, 0, 0,  0, 0, 1, 0, 0,  0, 0, 1, 0, 0,  0, 0, 1, 0, 0 }, // T
+			{ 1, 0, 0, 0, 1,  1, 0, 0, 0, 1,  1, 0, 0, 0, 1,  1, 0, 0, 0, 1,  1, 1, 1, 1, 1 }, // U
+			{ 1, 0, 0, 0, 1,  1, 0, 0, 0, 1,  0, 1, 0, 1, 0,  0, 1, 0, 1, 0,  0, 0, 1, 0, 0 }, // V
+			{ 1, 0, 0, 0, 1,  1, 0, 0, 0, 1,  1, 0, 1, 0, 1,  1, 0, 1, 0, 1,  0, 1, 0, 1, 0 }, // W
+			{ 1, 0, 0, 0, 1,  0, 1, 0, 1, 0,  0, 0, 1, 0, 0,  0, 1, 0, 1, 0,  1, 0, 0, 0, 1 }, // X
+			{ 1, 0, 0, 0, 1,  1, 0, 0, 0, 1,  0, 1, 1, 1, 0,  0, 0, 1, 0, 0,  0, 0, 1, 0, 0 }, // Y
+			{ 1, 1, 1, 1, 1,  0, 0, 0, 1, 0,  0, 0, 1, 0, 0,  0, 1, 0, 0, 0,  1, 1, 1, 1, 1 }  // Z
 		};
 	}
 }
@@ -316,6 +347,8 @@ namespace console
 	void clear();
 	void maximize();
 	void allowInput(bool flag);
+	HANDLE getInput();
+	HANDLE getOutput();
 
 	Region getScreenRegion();
 	CONSOLE_SCREEN_BUFFER_INFO getScreenInfo();
@@ -348,6 +381,7 @@ namespace console
 	void insert(STR string);
 
 	void setFontSize(Point size, bool maximized);
+	void setFont(WSTR fontName, bool maximized);
 	Point getSize(bool maximized);
 	void setCursorPos(Point pos);
 	Point getCursorPos();
@@ -357,6 +391,34 @@ namespace console
 
 	//Console() { }
 };
+
+namespace events
+{
+	static DWORD eventsRead;
+	static INPUT_RECORD eventsBuffer[128];
+	void getEvents();
+
+	class Event
+	{
+	private:
+		static Event* instance;
+		Event() {};
+	public:
+		static Event* getInstance();
+		virtual __event void KeyEvent(KEY_EVENT_RECORD e);
+		virtual __event void MouseEvent(MOUSE_EVENT_RECORD e);
+	};
+	class EventHandler
+	{
+	private:
+		std::shared_future<void> thread;
+	public:
+		virtual void onKeyEvent(KEY_EVENT_RECORD e);
+		virtual void onMouseEvent(MOUSE_EVENT_RECORD e);
+		EventHandler();
+		~EventHandler();
+	};
+}
 
 class Graphics
 {
