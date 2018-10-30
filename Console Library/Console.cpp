@@ -346,36 +346,29 @@
 		SetConsoleMode(input, fdwMode);
 		while (true)
 		{
-			// Wait for the events. 
-
 			ReadConsoleInput(input, eventsBuffer, 128, &eventsRead);
-
-			// Dispatch the events to the appropriate handler. 
-
 			for (size_t i = 0; i < eventsRead; i++)
 			{
 				for (i = 0; i < eventsRead; i++)
 				{
 					switch (eventsBuffer[i].EventType)
 					{
-					case KEY_EVENT: // keyboard input 
-						__raise (*Event::getInstance()).KeyEvent(eventsBuffer[i].Event.KeyEvent);
+					case KEY_EVENT:
+						parseKeyEvent(eventsBuffer[i].Event.KeyEvent);
 						break;
-
-					case MOUSE_EVENT: // mouse input 
-						__raise (*Event::getInstance()).MouseEvent(eventsBuffer[i].Event.MouseEvent);
+					case MOUSE_EVENT: 
+						parseMouseEvent(eventsBuffer[i].Event.MouseEvent);
 						break;
-
-					case WINDOW_BUFFER_SIZE_EVENT: // scrn buf. resizing 
+					case WINDOW_BUFFER_SIZE_EVENT:
+						RAISE (*Event::getInstance()).WindowResizedEvent(eventsBuffer[i].Event.WindowBufferSizeEvent.dwSize);
 						break;
-
-					case FOCUS_EVENT:  // disregard focus events 
-
-					case MENU_EVENT:   // disregard menu events 
+					case FOCUS_EVENT:
+						// IGNORE INTERNAL EVENT
+					case MENU_EVENT:
+						// IGNORE INTERNAL EVENT
 						break;
-
 					default:
-						printf("Unknown event type");
+						// Unknown event type;
 						break;
 					}
 				}
@@ -393,25 +386,91 @@
 		return instance;
 	}
 
-	void events::EventHandler::onKeyEvent(KEY_EVENT_RECORD e)
+	void events::parseKeyEvent(KEY_EVENT_RECORD e)
 	{
-		printf("Default keyPress\n");
+		RAISE (*Event::getInstance()).KeyEvent(e);
+		if (e.bKeyDown)
+		{
+			RAISE (*Event::getInstance()).KeyPressedEvent(e.wVirtualKeyCode);
+		}
+		else
+		{
+			RAISE (*Event::getInstance()).KeyReleasedEvent(e.wVirtualKeyCode);
+		}
 	}
-	void events::EventHandler::onMouseEvent(MOUSE_EVENT_RECORD e)
+	void events::parseMouseEvent(MOUSE_EVENT_RECORD e)
 	{
-		printf("Default mosuePress\n");
+		RAISE (*Event::getInstance()).MouseEvent(e);
+#ifndef MOUSE_HWHEELED
+#define MOUSE_HWHEELED 0x0008
+#endif
+		switch (e.dwEventFlags)
+		{
+		case 0:
+			if (e.dwButtonState == FROM_LEFT_1ST_BUTTON_PRESSED)
+			{
+				RAISE (*Event::getInstance()).MousePressedEvent(LEFT_MB, Point(e.dwMousePosition));
+			}
+			else if (e.dwButtonState == RIGHTMOST_BUTTON_PRESSED)
+			{
+				RAISE (*Event::getInstance()).MousePressedEvent(RIGHT_MB, Point(e.dwMousePosition));
+			}
+			else
+			{
+				RAISE (*Event::getInstance()).MousePressedEvent(ANY_MB, Point(e.dwMousePosition));
+			}
+			break;
+		case DOUBLE_CLICK:
+			if (e.dwButtonState == FROM_LEFT_1ST_BUTTON_PRESSED)
+			{
+				RAISE (*Event::getInstance()).MouseDoubleClickEvent(LEFT_MB, Point(e.dwMousePosition));
+			}
+			else if (e.dwButtonState == RIGHTMOST_BUTTON_PRESSED)
+			{
+				RAISE (*Event::getInstance()).MouseDoubleClickEvent(RIGHT_MB, Point(e.dwMousePosition));
+			}
+			else
+			{
+				RAISE (*Event::getInstance()).MouseDoubleClickEvent(ANY_MB, Point(e.dwMousePosition));
+			}
+			break;
+		case MOUSE_HWHEELED:
+			RAISE (*Event::getInstance()).MouseWheeledEvent(HORIZONTAL_MW, Point(e.dwMousePosition));
+			break;
+		case MOUSE_MOVED:
+			RAISE (*Event::getInstance()).MouseMoveEvent(Point(e.dwMousePosition));
+			break;
+		case MOUSE_WHEELED:
+			RAISE (*Event::getInstance()).MouseWheeledEvent(VERTICAL_MW, Point(e.dwMousePosition));
+			break;
+		default:
+			break;
+		}
 	}
 	events::EventHandler::EventHandler()
 	{
 		std::future<void> result(std::async(getEvents));
-		__hook(&Event::KeyEvent, Event::getInstance(), &EventHandler::onKeyEvent);
-		__hook(&Event::MouseEvent, Event::getInstance(), &EventHandler::onMouseEvent);
+		HOOK(&Event::KeyEvent, Event::getInstance(), &EventHandler::onKeyEvent);
+		HOOK(&Event::KeyPressedEvent, Event::getInstance(), &EventHandler::onKeyPressedEvent);
+		HOOK(&Event::KeyReleasedEvent, Event::getInstance(), &EventHandler::onKeyReleasedEvent);
+		HOOK(&Event::MouseEvent, Event::getInstance(), &EventHandler::onMouseEvent);
+		HOOK(&Event::MouseMoveEvent, Event::getInstance(), &EventHandler::onMouseMoveEvent);
+		HOOK(&Event::MousePressedEvent, Event::getInstance(), &EventHandler::onMousePressedEvent);
+		HOOK(&Event::MouseWheeledEvent, Event::getInstance(), &EventHandler::onMouseWheeledEvent);
+		HOOK(&Event::MouseDoubleClickEvent, Event::getInstance(), &EventHandler::onMouseDoubleClickEvent);
+		HOOK(&Event::WindowResizedEvent, Event::getInstance(), &EventHandler::onWindowResizedEvent);
 		thread = result.share();
 	}
 	events::EventHandler::~EventHandler()
 	{
-		__unhook(&Event::KeyEvent, Event::getInstance(), &EventHandler::onKeyEvent);
-		__unhook(&Event::MouseEvent, Event::getInstance(), &EventHandler::onMouseEvent);
+		UNHOOK(&Event::KeyEvent, Event::getInstance(), &EventHandler::onKeyEvent);
+		UNHOOK(&Event::KeyPressedEvent, Event::getInstance(), &EventHandler::onKeyPressedEvent);
+		UNHOOK(&Event::KeyReleasedEvent, Event::getInstance(), &EventHandler::onKeyReleasedEvent);
+		UNHOOK(&Event::MouseEvent, Event::getInstance(), &EventHandler::onMouseEvent);
+		UNHOOK(&Event::MouseMoveEvent, Event::getInstance(), &EventHandler::onMouseMoveEvent);
+		UNHOOK(&Event::MousePressedEvent, Event::getInstance(), &EventHandler::onMousePressedEvent);
+		UNHOOK(&Event::MouseWheeledEvent, Event::getInstance(), &EventHandler::onMouseWheeledEvent);
+		UNHOOK(&Event::MouseDoubleClickEvent, Event::getInstance(), &EventHandler::onMouseDoubleClickEvent);
 		thread.get();
 	};
 #endif
@@ -642,7 +701,7 @@
 		data = (BrushEx*)malloc(sizeof(BrushEx) * _size);
 		for (size_t i = 0; i < _size; i++)
 		{
-			data[i] = BrushEx(BACKGROUND_WHITE, false);
+			data[i] = BrushEx(BACKGROUND_WHITE, SPACE, false);
 		}
 	}
 	void Palette::Destroy()
@@ -786,12 +845,7 @@
 #endif
 /// GRAPHICS CLASS:
 #ifdef TRUE
-	Graphics::Graphics(bool flag)
-	{
-		valid = flag;
-	}
-
-	void Graphics::DrawLine(Point p1, Point p2, BrushEx brush)
+	void graphics::DrawLine(Point p1, Point p2, BrushEx brush)
 	{
 		Point start = Point((p1.x < p2.x) ? p1.x : p2.x, (p1.y < p2.y) ? p1.y : p2.y);
 		int distance = sqrt(pow(p2.x - p1.x, 2) + pow(p2.y - p1.y, 2));
@@ -817,7 +871,7 @@
 		}
 	}
 
-	void Graphics::DrawRect(Point c1, Point c2, size_t borderSize, BrushEx brush)
+	void graphics::DrawRect(Point c1, Point c2, size_t borderSize, BrushEx brush)
 	{
 		for (size_t borderOffset = 0; borderOffset < borderSize; borderOffset++)
 		{
@@ -828,16 +882,21 @@
 			DrawLine(region.rightBottom, region.leftTop - Point(0, region.getHeight()), BrushEx(BACKGROUND_WHITE));
 		}
 	}
-	void Graphics::FillRect(Point c1, Point c2, BrushEx brush)
+	void graphics::FillRect(Point c1, Point c2, BrushEx brush)
 	{
 
 	}
 
-	void Graphics::DrawCircle()
+	void graphics::DrawCircle(Point mid, size_t radius)
 	{
-
+		for (size_t i = 0; i < 360; i++)
+		{
+			int x = radius * cos(i * M_PI / 180);
+			int y = radius * sin(i * M_PI / 180);
+			console::drawPixel(SPACE, Point(mid.x + x, mid.y + y), BACKGROUND_WHITE);
+		}
 	}
-	void Graphics::FillCircle()
+	void graphics::FillCircle()
 	{
 
 	}

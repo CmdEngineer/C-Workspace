@@ -20,7 +20,8 @@ Notes:
 #include <stdio.h>
 #include <future>
 #include <stdlib.h>
-#include <cmath>
+#define _USE_MATH_DEFINES
+#include <math.h>
 
 /// Program flags:
 // FAST_DRAW -> When enabled will check each pixel before drawing to not waste time.
@@ -65,7 +66,6 @@ Notes:
 #define EVENT __event
 #define RAISE __raise
 
-
 #define POSITIVE 1
 #define EQUAL 0
 #define NEGATIVE -1
@@ -78,8 +78,8 @@ public:
 	CHAR character;
 	BrushEx() { brush = DEFAULT_BRUSH; character = SPACE; valid = true; };
 	BrushEx(Brush _brush) { brush = _brush; character = SPACE; valid = true; };
-	BrushEx(Brush _brush, bool flag) : BrushEx() { valid = flag; };
 	BrushEx(Brush _brush, CHAR _character) { brush = _brush; character = _character; valid = true; };
+	BrushEx(Brush _brush, CHAR _character, bool flag) : BrushEx() { brush = _brush; character = _character; valid = flag; };
 	bool operator==(BrushEx other) { return (brush == other.brush && character == other.character); };
 	bool operator!=(BrushEx other) { return !(*this == other); };
 	bool isValid() { return valid; }
@@ -394,9 +394,14 @@ namespace console
 
 namespace events
 {
+	enum MouseButton { ANY_MB, LEFT_MB, RIGHT_MB };
+	enum MouseWheel { ANY_MW, HORIZONTAL_MW, VERTICAL_MW };
+
 	static DWORD eventsRead;
 	static INPUT_RECORD eventsBuffer[128];
 	void getEvents();
+	void parseKeyEvent(KEY_EVENT_RECORD e);
+	void parseMouseEvent(MOUSE_EVENT_RECORD e);
 
 	class Event
 	{
@@ -405,37 +410,43 @@ namespace events
 		Event() {};
 	public:
 		static Event* getInstance();
-		virtual __event void KeyEvent(KEY_EVENT_RECORD e);
-		virtual __event void MouseEvent(MOUSE_EVENT_RECORD e);
+		virtual EVENT void KeyEvent(KEY_EVENT_RECORD e);
+		virtual EVENT void MouseEvent(MOUSE_EVENT_RECORD e);
+		virtual EVENT void KeyPressedEvent(WORD key);
+		virtual EVENT void KeyReleasedEvent(WORD key);
+		virtual EVENT void MouseMoveEvent(Point pos);
+		virtual EVENT void MousePressedEvent(MouseButton button, Point pos);
+		virtual EVENT void MouseDoubleClickEvent(MouseButton button, Point pos);
+		virtual EVENT void MouseWheeledEvent(MouseWheel wheel, Point pos);
+		virtual EVENT void WindowResizedEvent(Point size);
 	};
 	class EventHandler
 	{
 	private:
 		std::shared_future<void> thread;
 	public:
-		virtual void onKeyEvent(KEY_EVENT_RECORD e);
-		virtual void onMouseEvent(MOUSE_EVENT_RECORD e);
+		virtual void onMouseEvent(MOUSE_EVENT_RECORD e) {};
+		virtual void onKeyEvent(KEY_EVENT_RECORD e) {};
+		virtual void onKeyPressedEvent(WORD key) {};
+		virtual void onKeyReleasedEvent(WORD key) {};
+		virtual void onMouseMoveEvent(Point pos) {};
+		virtual void onMousePressedEvent(MouseButton button, Point pos) {};
+		virtual void onMouseDoubleClickEvent(MouseButton button, Point pos) {};
+		virtual void onMouseWheeledEvent(MouseWheel wheel, Point pos) {};
+		virtual void onWindowResizedEvent(Point size) {};
+		void loop() { while (true) {} };
 		EventHandler();
 		~EventHandler();
 	};
 }
 
-class Graphics
+namespace graphics
 {
-public:
-	Graphics(bool flag);
-	//Graphics(Console _console);
-
 	void DrawLine(Point p1, Point p2, BrushEx brush);
 
 	void DrawRect(Point c1, Point c2, size_t borderSize, BrushEx brush);
 	void FillRect(Point c1, Point c2, BrushEx brush);
 
-	void DrawCircle();
+	void DrawCircle(Point mid, size_t radius);
 	void FillCircle();
-
-	bool IsValid() { return valid; }
-private:
-	//Console console;
-	bool valid = true;
-};
+}
