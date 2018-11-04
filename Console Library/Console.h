@@ -19,6 +19,9 @@ Notes:
 #include <Windows.h>
 #include <stdio.h>
 #include <future>
+#include <functional>
+#include <list>
+#include <vector>
 #include <stdlib.h>
 #define _USE_MATH_DEFINES
 #include <math.h>
@@ -154,6 +157,7 @@ public:
 	int getWidth();
 	int getHeight();
 	int getArea();
+	bool contains(Point pos);
 	void getPoints(Point* buffer, int bufferLen);
 	bool isValid() { return valid; }
 private:
@@ -337,7 +341,7 @@ namespace console
 	static POINT cursorPos;
 	static DWORD cWritten, status;
 	static Brush _textAttribute = DEFAULT_BRUSH;
-	static union {
+	static struct {
 		bool ADVANCE_CURSOR = true;
 	} flags;
 
@@ -354,16 +358,16 @@ namespace console
 	CONSOLE_SCREEN_BUFFER_INFO getScreenInfo();
 	CONSOLE_FONT_INFOEX getFont();
 
-	Pixel getPixel(Point pos);
-	void getPixels(Region region, Pixel* buffer, int bufferLen);
-
 	void drawPixel(CHAR character, Point pos, Brush color);
 	void drawPixel(Pixel pixel);
 
 	void drawRegion(Region r, BrushEx brush);
 	void drawRegion(Region r, Brush color);
-	
-	void drawTexture(Texture t, Point pos);
+
+	void drawTexture(Texture t, Point pos, bool italics = false);
+
+	Pixel getPixel(Point pos);
+	void getPixels(Region region, Pixel* buffer, int bufferLen);
 
 	void setAttribute(Point pos, Brush color = BACKGROUND_WHITE, int length = 1);
 	void setAttribute(Brush color = BACKGROUND_WHITE, int length = 1);
@@ -442,11 +446,67 @@ namespace events
 
 namespace graphics
 {
-	void DrawLine(Point p1, Point p2, BrushEx brush);
+	void drawText(STR str, Point pos);
 
-	void DrawRect(Point c1, Point c2, size_t borderSize, BrushEx brush);
-	void FillRect(Point c1, Point c2, BrushEx brush);
+	void drawLine(Point p1, Point p2, BrushEx brush);
 
-	void DrawCircle(Point mid, size_t radius);
-	void FillCircle();
+	void drawRect(Point c1, Point c2, size_t borderSize, BrushEx brush);
+	void fillRect(Point c1, Point c2, BrushEx brush);
+
+	void drawCircle(Point mid, size_t radius, Brush brush, int minDegree = 0, int maxDegree = 360);
+	void fillCircle(Point mid, size_t radius, Brush brush, int minDegree = 0, int maxDegree = 360);
+
+	class Sprite
+	{
+	private:
+		Point pos;
+		Palette palette;
+		std::vector<Texture> textures;
+		size_t index;
+	public:
+		Sprite(Point pos, Palette palette);
+		void setPalette(Palette palette);
+		void addFrame(Texture t, size_t at);
+		void draw();
+		void forward();
+		void backward();
+		void animate(time_t milliseconds, bool repeat);
+		void animate(size_t to, time_t milliseconds, bool repeat);
+		void animate(size_t from, size_t to, time_t milliseconds, bool repeat);
+	};
+}
+
+namespace io
+{
+
+	class Element
+	{
+	public:
+		Region region;
+		void(*onclick)(Point);
+		virtual void draw() {};
+	};
+
+	static std::list<Element*> elements = {};
+
+	class IoEventHandler : public events::EventHandler
+	{
+	public:
+		void onMousePressedEvent(events::MouseButton button, Point pos);
+	};
+
+	static IoEventHandler ioHandler = IoEventHandler();
+
+	class Button : public Element
+	{
+	public:
+		void draw() override
+		{
+			console::drawRegion(this->region, graphicBrush);
+		}
+		Button(Region _region, BrushEx brush);
+		~Button();
+	private:
+		BrushEx graphicBrush;
+	};
 }

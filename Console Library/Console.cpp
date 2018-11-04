@@ -101,12 +101,12 @@
 	}
 	void console::drawPixel(Pixel pixel)
 	{
-		if (!FAST_DRAW || getPixel(pixel.pos) != pixel)
+		if (!FAST_DRAW || console::getPixel(pixel.pos) != pixel)
 		{
-			Point prevPos = getCursorPos();
+			Point prevPos = console::getCursorPos();
 			FillConsoleOutputCharacter(output, pixel.chr, 1, pixel.pos.toCoord(), &status);
 			FillConsoleOutputAttribute(output, pixel.color, 1, pixel.pos.toCoord(), &status);
-			setCursorPos(prevPos);
+			console::setCursorPos(prevPos);
 		}
 	}
 
@@ -127,11 +127,12 @@
 		free(buffer);
 	}
 
-	void console::drawTexture(Texture t, Point pos)
+	void console::drawTexture(Texture t, Point pos, bool italics)
 	{
 		BrushEx tempBrush;
 		for (size_t y = 0; y < t.height; y++)
 		{
+			pos.x += italics;
 			for (size_t x = 0; x < t.width; x++)
 			{
 				tempBrush = t.At({ x, y });
@@ -517,6 +518,10 @@
 		return getWidth() * getHeight();
 	}
 
+	bool Region::contains(Point pos)
+	{
+		return (pos >= leftTop && pos <= rightBottom);
+	}
 	void Region::getPoints(Point* buffer, int bufferLen)
 	{
 		int i = 0;
@@ -843,9 +848,38 @@
 		free(palette);
 	}
 #endif
-/// GRAPHICS CLASS:
+/// GRAPHICS NAMESPACE:
 #ifdef TRUE
-	void graphics::DrawLine(Point p1, Point p2, BrushEx brush)
+
+	static size_t layers[] = { 0 };
+
+	void graphics::drawText(STR str, Point pos)
+	{
+		Texture t = Texture(5, 5, 2);
+		t.palette->Set(0, BACKGROUND_DEFAULT);
+		t.palette->Set(1, BACKGROUND_WHITE);
+		int diff;
+		for (size_t i = 0; i < LEN(str); i++)
+		{
+			if (str[i] >= TEXT('a') && str[i] <= TEXT('z'))
+			{
+				diff = TEXT(str[i]) - TEXT('a');
+				t.fromArray(TypeFace::size5x5::character[diff]);
+				console::drawTexture(t, pos);
+				pos.x += 6;
+			}
+			else if (str[i] >= TEXT('A') && str[i] <= TEXT('Z'))
+			{
+				diff = TEXT(str[i]) - TEXT('A');
+				t.fromArray(TypeFace::size5x5::character[diff]);
+				console::drawTexture(t, pos);
+				pos.x += 6;
+			}
+			else pos.x += 6;
+		}
+	}
+
+	void graphics::drawLine(Point p1, Point p2, BrushEx brush)
 	{
 		Point start = Point((p1.x < p2.x) ? p1.x : p2.x, (p1.y < p2.y) ? p1.y : p2.y);
 		int distance = sqrt(pow(p2.x - p1.x, 2) + pow(p2.y - p1.y, 2));
@@ -871,34 +905,108 @@
 		}
 	}
 
-	void graphics::DrawRect(Point c1, Point c2, size_t borderSize, BrushEx brush)
+	void graphics::drawRect(Point c1, Point c2, size_t borderSize, BrushEx brush)
 	{
-		for (size_t borderOffset = 0; borderOffset < borderSize; borderOffset++)
+		for (size_t i = 0; i < borderSize; i++)
 		{
-			Region region = Region(c1 + Point(borderOffset, borderOffset), c2 - Point(borderOffset, borderOffset));
-			DrawLine(region.leftTop, region.leftTop + Point(region.getWidth(), 0), BrushEx(BACKGROUND_WHITE));
-			DrawLine(region.leftTop, region.leftTop + Point(0, region.getHeight()), BrushEx(BACKGROUND_WHITE));
-			DrawLine(region.rightBottom, region.leftTop - Point(region.getWidth(), 0), BrushEx(BACKGROUND_WHITE));
-			DrawLine(region.rightBottom, region.leftTop - Point(0, region.getHeight()), BrushEx(BACKGROUND_WHITE));
+			Region r = Region(c1 + Point(i, i), c2 - Point(i, i));
+			DrawLine(r.leftTop, r.leftTop + Point(r.getWidth(), 0), brush);
+			DrawLine(r.leftTop, r.leftTop + Point(0, r.getHeight()), brush);
+			DrawLine(r.rightBottom, r.rightBottom - Point(r.getWidth(), 0), brush);
+			DrawLine(r.rightBottom, r.rightBottom - Point(0, r.getHeight()), brush);
 		}
 	}
-	void graphics::FillRect(Point c1, Point c2, BrushEx brush)
+	void graphics::fillRect(Point c1, Point c2, BrushEx brush)
 	{
-
+		Region r = Region(c1, c2);
+		console::drawRegion(r, brush);
 	}
 
-	void graphics::DrawCircle(Point mid, size_t radius)
+	void graphics::drawCircle(Point mid, size_t radius, Brush brush, int minDegree, int maxDegree)
 	{
-		for (size_t i = 0; i < 360; i++)
+		int x = 0, y = 0;
+		for (size_t i = minDegree; i < maxDegree; i++)
 		{
-			int x = radius * cos(i * M_PI / 180);
-			int y = radius * sin(i * M_PI / 180);
-			console::drawPixel(SPACE, Point(mid.x + x, mid.y + y), BACKGROUND_WHITE);
+			x = radius * cos(i * M_PI / 180);
+			y = radius * sin(i * M_PI / 180);
+			console::drawPixel(SPACE, Point(mid.x + x, mid.y + y), brush);
 		}
 	}
-	void graphics::FillCircle()
+	void graphics::fillCircle(Point mid, size_t radius, Brush brush, int minDegree, int maxDegree)
+	{
+		int x = 0, y = 0;
+		for (size_t j = 0; j < radius; j++)
+		{
+			for (size_t i = minDegree; i < maxDegree; i++)
+			{
+				x = j * cos(i * M_PI / 180);
+				y = j * sin(i * M_PI / 180);
+				console::drawPixel(SPACE, Point(mid.x + x, mid.y + y), brush);
+			}
+		}
+	}
+	graphics::Sprite::Sprite(Point pos, Palette palette)
+	{
+		this->pos = pos;
+		this->palette = palette;
+		textures = std::vector<Texture>();
+		index = 0;
+	}
+
+	void graphics::Sprite::setPalette(Palette palette)
+	{
+		this->palette = p;
+	}
+
+	void graphics::Sprite::draw()
+	{
+		console::drawTexture(textures[index], )
+	}
+
+	void graphics::Sprite::forward()
 	{
 
 	}
 
+	void graphics::Sprite::backward()
+	{
+
+	}
+
+	void graphics::Sprite::animate(time_t milliseconds, bool repeat)
+	{
+
+	}
+
+	void graphics::Sprite::animate(size_t to, time_t milliseconds, bool repeat)
+	{
+
+	}
+
+	void graphics::Sprite::animate(size_t from, size_t to, time_t milliseconds, bool repeat)
+	{
+
+	}
+
+
+#endif
+/// IO NAMESPACE:
+#ifdef TRUE
+	void io::IoEventHandler::onMousePressedEvent(events::MouseButton button, Point pos)
+	{
+		for (Element* elem : elements)
+			if (elem->onclick)
+				if (elem->region.contains(pos))
+					elem->onclick(pos);
+	}
+	io::Button::Button(Region _region, BrushEx brush)
+	{
+		graphicBrush = brush;
+		region = _region;
+		elements.push_back(this);
+	}
+	io::Button::~Button()
+	{
+		elements.remove(this);
+	}
 #endif
