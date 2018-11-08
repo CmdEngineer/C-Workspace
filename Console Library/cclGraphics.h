@@ -21,6 +21,7 @@ namespace graphics
 		size_t index;
 	public:
 		Sprite(Point pos, Palette palette);
+		~Sprite();
 		void setPalette(Palette palette);
 		void addFrame(Texture t, size_t at);
 		void draw();

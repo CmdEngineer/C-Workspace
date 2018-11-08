@@ -94,6 +94,7 @@ void graphics::fillCircle(Point mid, size_t radius, Brush brush, int minDegree, 
 		}
 	}
 }
+
 graphics::Sprite::Sprite(Point pos, Palette palette)
 {
 	this->pos = pos;
@@ -107,19 +108,26 @@ void graphics::Sprite::setPalette(Palette palette)
 	this->palette = palette;
 }
 
+void graphics::Sprite::addFrame(Texture t, size_t at)
+{
+	t.palette->Set(0, BACKGROUND_DEFAULT);
+	t.palette->Set(1, BACKGROUND_WHITE);
+	textures.insert(textures.begin() + at, t);
+}
+
 void graphics::Sprite::draw()
 {
-	//console::drawTexture(textures[index], )
+	console::drawTexture(textures[index], pos, false);
 }
 
 void graphics::Sprite::forward()
 {
-
+	index >= textures.size() - 1  ? index = 0 : index++;
 }
 
 void graphics::Sprite::backward()
 {
-
+	index < textures.size() ? index = textures.size() - 1 : index--;
 }
 
 void graphics::Sprite::animate(time_t milliseconds, bool repeat)
@@ -135,4 +143,12 @@ void graphics::Sprite::animate(size_t to, time_t milliseconds, bool repeat)
 void graphics::Sprite::animate(size_t from, size_t to, time_t milliseconds, bool repeat)
 {
 
+}
+
+graphics::Sprite::~Sprite()
+{
+	for (size_t i = 0; i < textures.size(); i++)
+	{
+		textures[i].Destroy();
+	}
 }
